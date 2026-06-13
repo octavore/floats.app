@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "journal",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v18)],
     targets: [
         .executableTarget(
             name: "journal",
