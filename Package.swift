@@ -8,6 +8,6 @@ let package = Package(
         .executableTarget(
             name: "journal",
             path: "Sources/journal"
-        ),
+        )
     ]
 )

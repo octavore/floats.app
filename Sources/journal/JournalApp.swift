@@ -6,7 +6,9 @@ struct JournalApp: App {
         WindowGroup {
             EditorView()
         }
-        .windowStyle(.hiddenTitleBar)
+        #if os(macOS)
+            .windowStyle(.hiddenTitleBar)
+        #endif
         .commands {
             FormatCommands()
         }

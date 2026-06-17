@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// A formatting action aimed at the current selection. Senders (menus,
-/// toolbar buttons) describe intent; the active backend decides how to
-/// apply it to its text view.
 enum EditorCommand {
     case toggleBold
     case toggleItalic
@@ -12,8 +9,7 @@ enum EditorCommand {
 
 /// Bridge from SwiftUI controls into the active editor backend. The view
 /// that owns the editor creates one and passes it down; the backend installs
-/// a handler when its platform view is made. Senders never learn which
-/// backend is behind it, so the `JournalEditor` seam stays intact.
+/// a handler when its platform view is made.
 @MainActor
 final class EditorCommands {
     var handler: ((EditorCommand) -> Void)?

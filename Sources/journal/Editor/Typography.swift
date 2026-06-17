@@ -66,30 +66,35 @@ enum TextStyle: String, CaseIterable, Identifiable {
 
     /// Normalizes externally-pasted rich text into the journal's type system.
     ///
-    /// Foreign rich text arrives carrying `NSTextAttachment`s (inline images,
-    /// list markers, …) and fonts the editor can't round-trip. The attachments
-    /// don't survive `NSAttributedString` ↔ `AttributedString`, but the U+FFFC
-    /// object-replacement characters they sit on do — which is what renders as
-    /// "boxes with question marks." This re-bases every run onto the body font,
-    /// preserves only bold/italic/underline, and drops attachments and any
-    /// other styling so pasted text matches the surrounding journal.
+    /// We default to the body style, and copy over only bold/italic/underline traits from the
+    /// pasted content. All `NSTextAttachment`s (inline images, list markers, etc) and fonts
+    /// are dropped. Support for these are TODO.
     static func sanitize(pasted input: NSAttributedString) -> NSAttributedString {
         let output = NSMutableAttributedString()
         let full = NSRange(location: 0, length: input.length)
+
         input.enumerateAttributes(in: full) { attrs, range, _ in
             // Skip attachment runs outright; strip any stray U+FFFC elsewhere.
             if attrs[.attachment] != nil { return }
+
             let text = (input.string as NSString)
                 .substring(with: range)
                 .replacingOccurrences(of: "\u{FFFC}", with: "")
+
+            // Skip empty string
             guard !text.isEmpty else { return }
 
+            // get default body text style
             var clean = body.attributes
-            let traits = (attrs[.font] as? PlatformFont)?
+
+            // copy bold/italic traits from the original font
+            let traits =
+                (attrs[.font] as? PlatformFont)?
                 .traits.intersection([.boldTrait, .italicTrait]) ?? []
             if !traits.isEmpty {
                 clean[.font] = body.font.with(traits: traits)
             }
+            // copy underline if present
             if let underline = attrs[.underlineStyle] as? Int, underline != 0 {
                 clean[.underlineStyle] = underline
             }

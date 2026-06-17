@@ -42,6 +42,12 @@ import SwiftUI
   }
 #endif
 
+extension PlatformTextView {
+  // UITextView.textStorage is non-optional; NSTextView.textStorage is optional.
+  // Declaring the return as Optional? lets shared code bind both uniformly.
+  var optionalTextStorage: NSTextStorage? { textStorage }
+}
+
 extension PlatformFont {
   var traits: FontTraits { fontDescriptor.symbolicTraits }
 
