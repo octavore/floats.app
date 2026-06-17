@@ -1,1 +1,21 @@
 project_name = "journal.app"
+
+[tasks]
+build = {
+  command = "strudel build",
+  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+}
+release = {
+  command = "strudel release",
+  # env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+}
+sim = "strudel sim"
+device = {
+  command = "strudel device",
+  env = {
+    APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert",
+    APPLE_API_ISSUER = "axo://apple/app-store-connect/api-issuer-id",
+    APPLE_API_KEY = "axo://apple/app-store-admin/api-key-id",
+    APPLE_API_KEY_PATH = "axo://apple/app-store-admin/api-key-path"
+  }
+}
