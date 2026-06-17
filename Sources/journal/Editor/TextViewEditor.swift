@@ -13,11 +13,6 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
     @Binding var text: AttributedString
     let commands: EditorCommands
 
-    init(text: Binding<AttributedString>, commands: EditorCommands) {
-        self._text = text
-        self.commands = commands
-    }
-
     func makeCoordinator() -> Coordinator { Coordinator(text: $text, commands: commands) }
 
     @MainActor
@@ -27,11 +22,19 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
         // Set when we push a change up through the binding so updateXxxView
         // can skip the redundant round-trip back into the text storage.
         var textViewDidChange = false
+        // Block-based NotificationCenter tokens (iOS keyboard observers) to
+        // unregister when the coordinator goes away. Empty on macOS. Mutated
+        // only on the main actor; read once from the nonisolated deinit.
+        nonisolated(unsafe) var observerTokens: [NSObjectProtocol] = []
 
         init(text: Binding<AttributedString>, commands: EditorCommands) {
             self._text = text
             super.init()
             commands.handler = { [weak self] in self?.handle($0) }
+        }
+
+        deinit {
+            observerTokens.forEach(NotificationCenter.default.removeObserver)
         }
 
         private func handle(_ command: EditorCommand) {

@@ -13,6 +13,11 @@ struct EditorView: View {
             // text itself is kept to a readable column inside the text view.
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(PlatformColor.editorBackground))
+            // Opt out of SwiftUI's automatic keyboard avoidance; the UITextView
+            // adjusts its own contentInset to keep content visible above the keyboard.
+            #if os(iOS)
+                .ignoresSafeArea(.keyboard)
+            #endif
             // Exposes this window's editor to the app-level Format menu.
             .focusedSceneValue(\.editorCommands, commands)
             #if os(iOS)

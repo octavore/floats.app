@@ -18,6 +18,7 @@
             tv.allowsEditingTextAttributes = true
             tv.typingAttributes = TextStyle.body.attributes
             context.coordinator.textView = tv
+            context.coordinator.observeKeyboard(for: tv)
             return tv
         }
 
@@ -38,6 +39,32 @@
         func textViewDidChange(_ textView: UITextView) {
             textViewDidChange = true
             text = AttributedString(textView.attributedText)
+        }
+
+        func observeKeyboard(for tv: UITextView) {
+            let center = NotificationCenter.default
+            observerTokens.append(center.addObserver(
+                forName: UIResponder.keyboardWillChangeFrameNotification,
+                object: nil, queue: .main
+            ) { [weak tv] note in
+                guard let tv, let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
+                      let window = tv.window
+                else { return }
+                // Convert keyboard frame to the text view's coordinate space so
+                // the inset is correct regardless of safe-area or split-screen layout.
+                let keyboardInView = tv.convert(frame, from: window.screen.coordinateSpace)
+                let overlap = max(0, tv.bounds.maxY - keyboardInView.minY)
+                tv.contentInset.bottom = overlap
+                tv.verticalScrollIndicatorInsets.bottom = overlap
+                tv.scrollRangeToVisible(tv.selectedRange)
+            })
+            observerTokens.append(center.addObserver(
+                forName: UIResponder.keyboardWillHideNotification,
+                object: nil, queue: .main
+            ) { [weak tv] _ in
+                tv?.contentInset.bottom = 0
+                tv?.verticalScrollIndicatorInsets.bottom = 0
+            })
         }
     }
 
