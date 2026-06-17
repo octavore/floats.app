@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum EditorCommand {
-    case toggleBold
-    case toggleItalic
-    case toggleUnderline
-    case setBlockStyle(TextStyle)
+  case toggleBold
+  case toggleItalic
+  case toggleUnderline
+  case setBlockStyle(TextStyle)
 }
 
 /// Bridge from SwiftUI controls into the active editor backend. The view
@@ -12,14 +12,14 @@ enum EditorCommand {
 /// a handler when its platform view is made.
 @MainActor
 final class EditorCommands {
-    var handler: ((EditorCommand) -> Void)?
+  var handler: ((EditorCommand) -> Void)?
 
-    func send(_ command: EditorCommand) {
-        handler?(command)
-    }
+  func send(_ command: EditorCommand) {
+    handler?(command)
+  }
 }
 
 extension FocusedValues {
-    /// Lets app-level menu commands reach the editor in the focused window.
-    @Entry var editorCommands: EditorCommands?
+  /// Lets app-level menu commands reach the editor in the focused window.
+  @Entry var editorCommands: EditorCommands?
 }

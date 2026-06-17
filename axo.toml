@@ -1,6 +1,10 @@
 project_name = "journal.app"
 
 [tasks]
+format = {
+  command = "swift format --in-place --recursive Sources",
+  description = "Format Swift sources in place"
+}
 build = {
   command = "strudel build",
   env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
