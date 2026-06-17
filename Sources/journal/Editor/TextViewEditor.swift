@@ -49,56 +49,45 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
         // MARK: Inline traits
 
         private func toggleTrait(_ trait: FontTraits) {
-            guard let tv = textView, let storage = tv.optionalTextStorage else { return }
-            let selection = tv.selectedRange
-            guard selection.length > 0 else {
+            mutateSelection { tv in
                 // Caret only: flip the trait for whatever gets typed next.
-                let font = tv.typingAttributes[.font] as? PlatformFont ?? TextStyle.body.font
-                tv.typingAttributes[.font] = font.toggling(trait)
-                return
-            }
-            // Match the platforms' convention for mixed runs: if anything in
-            // the selection lacks the trait, add it everywhere; only a
-            // uniformly-styled selection toggles off.
-            var allHaveTrait = true
-            storage.enumerateAttribute(.font, in: selection) { value, _, stop in
-                let font = value as? PlatformFont ?? TextStyle.body.font
-                if !font.traits.contains(trait) {
-                    allHaveTrait = false
-                    stop.pointee = true
+                tv.typingAttributes[.font] = font(tv.typingAttributes[.font]).toggling(trait)
+            } selection: { storage, selection in
+                // Match the platforms' convention for mixed runs: if anything
+                // in the selection lacks the trait, add it everywhere; only a
+                // uniformly-styled selection toggles off.
+                var allHaveTrait = true
+                storage.enumerateAttribute(.font, in: selection) { value, _, stop in
+                    if !font(value).traits.contains(trait) {
+                        allHaveTrait = false
+                        stop.pointee = true
+                    }
                 }
-            }
-            performEdit(in: selection) { storage in
                 storage.enumerateAttribute(.font, in: selection) { value, range, _ in
-                    let font = value as? PlatformFont ?? TextStyle.body.font
+                    let f = font(value)
                     let traits =
                         allHaveTrait
-                        ? font.traits.subtracting(trait) : font.traits.union(trait)
-                    storage.addAttribute(.font, value: font.with(traits: traits), range: range)
+                        ? f.traits.subtracting(trait) : f.traits.union(trait)
+                    storage.addAttribute(.font, value: f.with(traits: traits), range: range)
                 }
             }
         }
 
         private func toggleUnderline() {
-            guard let tv = textView, let storage = tv.optionalTextStorage else { return }
-            let selection = tv.selectedRange
-            guard selection.length > 0 else {
-                let current = tv.typingAttributes[.underlineStyle] as? Int ?? 0
-                if current == 0 {
+            mutateSelection { tv in
+                if (tv.typingAttributes[.underlineStyle] as? Int ?? 0) == 0 {
                     tv.typingAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
                 } else {
                     tv.typingAttributes.removeValue(forKey: .underlineStyle)
                 }
-                return
-            }
-            var allUnderlined = true
-            storage.enumerateAttribute(.underlineStyle, in: selection) { value, _, stop in
-                if (value as? Int ?? 0) == 0 {
-                    allUnderlined = false
-                    stop.pointee = true
+            } selection: { storage, selection in
+                var allUnderlined = true
+                storage.enumerateAttribute(.underlineStyle, in: selection) { value, _, stop in
+                    if (value as? Int ?? 0) == 0 {
+                        allUnderlined = false
+                        stop.pointee = true
+                    }
                 }
-            }
-            performEdit(in: selection) { storage in
                 if allUnderlined {
                     storage.removeAttribute(.underlineStyle, range: selection)
                 } else {
@@ -128,7 +117,7 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
                     storage.addAttribute(
                         .paragraphStyle, value: style.paragraphStyle, range: paragraphs)
                     storage.enumerateAttribute(.font, in: paragraphs) { value, range, _ in
-                        let old = value as? PlatformFont ?? TextStyle.body.font
+                        let old = font(value)
                         // keep existing bold/italic traits
                         let kept = old.traits.intersection([.boldTrait, .italicTrait])
                         // apply the new style's font traits (e.g. weight, size)
@@ -140,6 +129,26 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
         }
 
         // MARK: Plumbing
+
+        /// A font attribute value, or the body font when a run is missing one.
+        private func font(_ value: Any?) -> PlatformFont {
+            value as? PlatformFont ?? TextStyle.body.font
+        }
+
+        /// Shared scaffold for the inline toggles: routes a caret-only edit to
+        /// the typing attributes, and a ranged selection through `performEdit`.
+        private func mutateSelection(
+            caret: (PlatformTextView) -> Void,
+            selection: (NSTextStorage, NSRange) -> Void
+        ) {
+            guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+            let range = tv.selectedRange
+            guard range.length > 0 else {
+                caret(tv)
+                return
+            }
+            performEdit(in: range) { selection($0, range) }
+        }
 
         /// Runs a programmatic attribute edit with undo support (macOS) and
         /// pushes the result back through the binding.
