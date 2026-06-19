@@ -17,6 +17,9 @@
       // binding catches up on the next text change.
       tv.allowsEditingTextAttributes = true
       tv.typingAttributes = TextStyle.body.attributes
+      // The highlighter is the storage's delegate: every character edit routes
+      // through its didProcessEditing, the single trigger for restyling.
+      tv.textStorage.delegate = context.coordinator.highlighter
       context.coordinator.textView = tv
       context.coordinator.observeKeyboard(for: tv)
       return tv
@@ -31,12 +34,15 @@
       guard tv.attributedText != desired else { return }
       let selected = tv.selectedRange
       tv.attributedText = desired
+      context.coordinator.highlighter.highlight(tv.textStorage)
       tv.selectedRange = selected
     }
   }
 
   extension TextViewEditor.Coordinator: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
+      // The storage delegate has already restyled the text; just sync the
+      // binding (highlighting attributes included) back up to SwiftUI.
       textViewDidChange = true
       text = AttributedString(textView.attributedText)
     }

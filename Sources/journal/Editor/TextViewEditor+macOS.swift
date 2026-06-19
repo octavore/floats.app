@@ -25,6 +25,11 @@
         width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
       tv.textContainer?.widthTracksTextView = true
 
+      // The highlighter is the storage's delegate: every character edit (typing,
+      // paste, programmatic replacement) routes through its didProcessEditing,
+      // which is the single trigger for incremental restyling.
+      tv.textStorage?.delegate = context.coordinator.highlighter
+
       scroll.documentView = tv
       context.coordinator.textView = tv
       return scroll
@@ -41,6 +46,8 @@
       let desired = NSAttributedString(text)
       guard storage != desired else { return }
       let selected = tv.selectedRanges
+      // Replacing the storage fires the highlighter's didProcessEditing, which
+      // restyles the whole document; no explicit highlight call needed.
       storage.setAttributedString(desired)
       tv.selectedRanges = selected
     }
@@ -51,6 +58,8 @@
       guard let tv = notification.object as? NSTextView,
         let storage = tv.textStorage
       else { return }
+      // The storage delegate has already restyled `storage`; just sync the
+      // binding (highlighting attributes included) back up to SwiftUI.
       textViewDidChange = true
       text = AttributedString(storage)
     }

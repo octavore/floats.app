@@ -19,9 +19,14 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
   final class Coordinator: NSObject {
     @Binding var text: AttributedString
     weak var textView: PlatformTextView?
+
+    // Derives formatting from the text as Markdown on every change.
+    let highlighter = MarkdownHighlighter()
+
     // Set when we push a change up through the binding so updateXxxView
     // can skip the redundant round-trip back into the text storage.
     var textViewDidChange = false
+
     // Block-based NotificationCenter tokens (iOS keyboard observers) to
     // unregister when the coordinator goes away. Empty on macOS. Mutated
     // only on the main actor; read once from the nonisolated deinit.
@@ -141,7 +146,7 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
       caret: (PlatformTextView) -> Void,
       selection: (NSTextStorage, NSRange) -> Void
     ) {
-      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+      guard let tv = textView else { return }
       let range = tv.selectedRange
       guard range.length > 0 else {
         caret(tv)
