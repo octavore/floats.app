@@ -23,9 +23,17 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
     // Derives formatting from the text as Markdown on every change.
     let highlighter = MarkdownHighlighter()
 
-    // Set when we push a change up through the binding so updateXxxView
-    // can skip the redundant round-trip back into the text storage.
-    var textViewDidChange = false
+    // Converting the whole document to an `AttributedString` for the binding is
+    // O(n); on a large document that dominated per-keystroke latency. Typing
+    // mutates the text view's storage (the live source of truth) and restyles
+    // synchronously, so we coalesce the binding write to fire once after typing
+    // pauses instead of on every keystroke.
+    private var bindingSyncTask: Task<Void, Never>?
+
+    // True from a text-view edit until its debounced binding sync completes, so
+    // updateXxxView won't rebuild the storage from the (stale) binding and
+    // clobber in-progress typing.
+    var isSyncingFromTextView = false
 
     // Block-based NotificationCenter tokens (iOS keyboard observers) to
     // unregister when the coordinator goes away. Empty on macOS. Mutated
@@ -40,6 +48,30 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
 
     deinit {
       observerTokens.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    // MARK: Binding sync
+
+    /// Coalesces the expensive binding write. Called on every text-view change;
+    /// the actual `AttributedString` conversion runs once typing settles.
+    func scheduleBindingSync() {
+      isSyncingFromTextView = true
+      bindingSyncTask?.cancel()
+      bindingSyncTask = Task { @MainActor [weak self] in
+        try? await Task.sleep(for: .milliseconds(250))
+        guard !Task.isCancelled else { return }
+        self?.flushBindingSync()
+      }
+    }
+
+    /// Pushes the text view's current content up through the binding now,
+    /// cancelling any pending debounced sync. Harmless when nothing is pending.
+    func flushBindingSync() {
+      bindingSyncTask?.cancel()
+      bindingSyncTask = nil
+      defer { isSyncingFromTextView = false }
+      guard let storage = textView?.optionalTextStorage else { return }
+      text = AttributedString(storage)
     }
 
     private func handle(_ command: EditorCommand) {

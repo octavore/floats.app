@@ -26,10 +26,9 @@
     }
 
     func updateUIView(_ tv: UITextView, context: Context) {
-      if context.coordinator.textViewDidChange {
-        context.coordinator.textViewDidChange = false
-        return
-      }
+      // While the text view is the live source of truth (typing in flight, its
+      // binding sync still pending), don't rebuild the storage from the binding.
+      if context.coordinator.isSyncingFromTextView { return }
       let desired = NSAttributedString(text)
       guard tv.attributedText != desired else { return }
       let selected = tv.selectedRange
@@ -41,10 +40,9 @@
 
   extension TextViewEditor.Coordinator: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
-      // The storage delegate has already restyled the text; just sync the
-      // binding (highlighting attributes included) back up to SwiftUI.
-      textViewDidChange = true
-      text = AttributedString(textView.attributedText)
+      // The storage delegate has already restyled the text; coalesce the costly
+      // binding conversion so it runs once typing settles, not per keystroke.
+      scheduleBindingSync()
     }
 
     func observeKeyboard(for tv: UITextView) {

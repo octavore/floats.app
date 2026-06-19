@@ -36,10 +36,9 @@
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-      if context.coordinator.textViewDidChange {
-        context.coordinator.textViewDidChange = false
-        return
-      }
+      // While the text view is the live source of truth (typing in flight, its
+      // binding sync still pending), don't rebuild the storage from the binding.
+      if context.coordinator.isSyncingFromTextView { return }
       guard let tv = scroll.documentView as? NSTextView,
         let storage = tv.textStorage
       else { return }
@@ -55,13 +54,9 @@
 
   extension TextViewEditor.Coordinator: NSTextViewDelegate {
     func textDidChange(_ notification: Notification) {
-      guard let tv = notification.object as? NSTextView,
-        let storage = tv.textStorage
-      else { return }
-      // The storage delegate has already restyled `storage`; just sync the
-      // binding (highlighting attributes included) back up to SwiftUI.
-      textViewDidChange = true
-      text = AttributedString(storage)
+      // The storage delegate has already restyled the text; coalesce the costly
+      // binding conversion so it runs once typing settles, not per keystroke.
+      scheduleBindingSync()
     }
   }
 

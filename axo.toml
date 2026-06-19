@@ -6,8 +6,9 @@ format = {
   description = "Format Swift sources in place"
 }
 build = {
-  command = "strudel build",
-  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+  command = "strudel bundle",
+  # command = "strudel build",
+  # env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
 }
 release = {
   command = "strudel release",

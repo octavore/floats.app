@@ -18,10 +18,8 @@ final class CoordinatorLoopTests: XCTestCase {
     /// Mirrors the body of `TextViewEditor.updateNSView` for a given coordinator
     /// + text view, so we can run the SwiftUI side of the loop in a test.
     private func runUpdate(_ coordinator: TextViewEditor.Coordinator, _ tv: NSTextView) {
-      if coordinator.textViewDidChange {
-        coordinator.textViewDidChange = false
-        return
-      }
+      // While the text view's binding sync is pending, updateNSView is a no-op.
+      if coordinator.isSyncingFromTextView { return }
       guard let storage = tv.textStorage else { return }
       let desired = NSAttributedString(coordinator.text)
       guard storage != desired else { return }
@@ -30,13 +28,6 @@ final class CoordinatorLoopTests: XCTestCase {
       // which restyles; no explicit highlight call, mirroring updateNSView.
       storage.setAttributedString(desired)
       tv.selectedRanges = selected
-    }
-
-    /// Runs the main queue until everything already enqueued has executed.
-    private func drainMainQueue() {
-      let exp = expectation(description: "drain main queue")
-      DispatchQueue.main.async { exp.fulfill() }
-      wait(for: [exp], timeout: 1)
     }
 
     private func isMono(_ storage: NSTextStorage, at loc: Int) -> Bool {
@@ -59,14 +50,14 @@ final class CoordinatorLoopTests: XCTestCase {
       let storage = tv.textStorage!
       let md = "a `code` b"
       for ch in md {
+        // Each keystroke restyles `storage` synchronously via the storage
+        // delegate; the binding write is coalesced and stays pending.
         tv.insertText(String(ch), replacementRange: tv.selectedRange())
-        // The delegate now defers highlighting to the next runloop tick, so
-        // drain the main queue to let it (and the binding write) run, mirroring
-        // the edit cycle closing in the real app...
-        drainMainQueue()
-        // ...then SwiftUI reacts to the binding write the coordinator made.
-        runUpdate(coordinator, tv)
       }
+      // Close the edit cycle as the app does when typing settles: flush the
+      // coalesced binding write, then let SwiftUI react to it.
+      coordinator.flushBindingSync()
+      runUpdate(coordinator, tv)
 
       let code = (storage.string as NSString).range(of: "code").location
       XCTAssertTrue(
