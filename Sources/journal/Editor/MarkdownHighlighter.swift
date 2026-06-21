@@ -20,9 +20,19 @@ import TreeSitterMarkdownInline
 ///
 /// The highlighter is the text storage's `NSTextStorageDelegate`. On each user
 /// edit `didProcessEditing` hands us the exact edited range and length delta —
-/// far better than reconstructing the edit by diffing — so we feed tree-sitter a
-/// precise `InputEdit`, reparse *incrementally* (reusing the untouched
-/// subtrees), and restyle only the paragraphs the parse says actually changed.
+/// far better than reconstructing the edit by diffing.
+///
+/// To keep typing instant on very long documents, the per-keystroke path does
+/// the least work that styles the cursor's paragraph correctly: it parses *only
+/// that one paragraph's text* in isolation and restyles it. This is bounded by
+/// the paragraph's length, not the document's, so it stays fast no matter how
+/// big the file is. We still feed tree-sitter a precise `InputEdit` so the full
+/// tree stays editable, but the expensive whole-document reparse is *debounced*
+/// — it runs once typing pauses, reusing untouched subtrees and restyling the
+/// paragraphs the parse says changed, plus any paragraph the local parse styled
+/// optimistically. The only visible cost is a brief hitch on a huge document
+/// when you stop, and a rare transient mis-style of multi-paragraph constructs
+/// (an open code fence) until that deferred parse catches up.
 ///
 /// Everything on the per-keystroke path is kept off the document's length:
 ///  - We read characters through `storage.mutableString`, a live non-copying
@@ -61,6 +71,27 @@ final class MarkdownHighlighter: NSObject {
   /// sometimes reports a block's range out to a trailing position).
   private var length = 0
 
+  /// A full incremental reparse scheduled to run once typing pauses. Reset on
+  /// every keystroke so it only fires when the user stops; cancelled whenever a
+  /// whole-document parse supersedes it.
+  private var pendingParse: Task<Void, Never>?
+
+  /// How long the document must stay idle before the deferred full reparse runs.
+  /// Long enough that a normal typing burst never triggers it, short enough that
+  /// any paragraph the local parse mis-styled is corrected almost immediately.
+  private let fullParseDelay: Duration = .milliseconds(600)
+
+  /// The document range styled optimistically by a local paragraph parse since
+  /// the last full parse. The deferred reparse re-styles it against the
+  /// authoritative tree, so a paragraph the local parse couldn't classify (an
+  /// edit inside a code fence) is corrected once typing pauses. A single span is
+  /// enough: edits in one idle window cluster around the cursor, and over-
+  /// covering only restyles a few extra paragraphs identically.
+  private var dirtySpan: NSRange?
+
+  /// When true, `applyEdit` prints a per-phase timing breakdown. Diagnostic only.
+  var debugTiming = false
+
   override init() {
     super.init()
     do {
@@ -77,6 +108,9 @@ final class MarkdownHighlighter: NSObject {
   /// render and any programmatic whole-document replacement. Safe to call from
   /// outside an edit transaction — it brackets its own begin/endEditing.
   func highlight(_ storage: NSTextStorage) {
+    pendingParse?.cancel()
+    pendingParse = nil
+    dirtySpan = nil
     guard let root = freshParse(storage) else { return }
     storage.beginEditing()
     restyle(
@@ -85,10 +119,12 @@ final class MarkdownHighlighter: NSObject {
     storage.endEditing()
   }
 
-  /// Incrementally reparses and restyles `storage` for a single character edit.
-  /// `editedRange` is in the post-edit text; `delta` is the change in length
-  /// (`changeInLength`). Must run inside the storage's edit processing: it
-  /// mutates attributes directly, without begin/endEditing.
+  /// Reacts to a single character edit: styles the edited paragraph immediately
+  /// from a local parse, records the `InputEdit` for the deferred whole-document
+  /// reparse, and (re)arms that reparse to run once typing pauses. `editedRange`
+  /// is in the post-edit text; `delta` is the change in length (`changeInLength`).
+  /// Must run inside the storage's edit processing: it mutates attributes
+  /// directly, without begin/endEditing.
   func applyEdit(editedRange: NSRange, delta: Int, to storage: NSTextStorage) {
     let newLength = storage.length
 
@@ -108,49 +144,167 @@ final class MarkdownHighlighter: NSObject {
     // end point must be read against the pre-edit line index, so compute both
     // before advancing the index. The byte offsets are authoritative for
     // tree-sitter; the points keep its column-sensitive scanner honest.
+    let t0 = debugTiming ? CFAbsoluteTimeGetCurrent() : 0
     let startPoint = point(at: start)
     let oldEndPoint = point(at: oldEnd)
     updateLineStarts(start: start, oldEnd: oldEnd, newEnd: newEnd, delta: delta, in: storage)
     length = newLength
     let newEndPoint = point(at: newEnd)
+    let t1 = debugTiming ? CFAbsoluteTimeGetCurrent() : 0
 
+    // Accumulate the edit on the tree so the deferred reparse is incremental,
+    // but don't parse now — that whole-document cost is what we're deferring.
     old.edit(
       InputEdit(
         startByte: start * 2, oldEndByte: oldEnd * 2, newEndByte: newEnd * 2,
         startPoint: startPoint, oldEndPoint: oldEndPoint, newEndPoint: newEndPoint))
 
+    // Immediate, length-independent styling of just the edited paragraph.
+    let edited = styleLocalParagraph(around: editedRange, in: storage)
+    let t2 = debugTiming ? CFAbsoluteTimeGetCurrent() : 0
+
+    // Remember what we styled optimistically (shifting any earlier span for this
+    // edit first) so the deferred parse re-checks it against the real tree.
+    dirtySpan = union(shift(dirtySpan, start: start, oldEnd: oldEnd, delta: delta), edited)
+    scheduleFullParse(for: storage)
+
+    if debugTiming {
+      let ms = { (a: CFAbsoluteTime, b: CFAbsoluteTime) in String(format: "%.2f", (b - a) * 1000) }
+      print(
+        "applyEdit: lineIndex+points=\(ms(t0, t1))ms localParse+restyle=\(ms(t1, t2))ms "
+          + "(paragraph \(edited.length) chars)")
+    }
+  }
+
+  // MARK: Local parse (per keystroke)
+
+  /// Parses the single paragraph containing `editedRange` in isolation and
+  /// restyles it, returning the paragraph's range. Bounded by the paragraph's
+  /// length, so it stays instant however long the document is. A standalone
+  /// paragraph parses to its own block (paragraph, heading, …) with inline
+  /// content, which is everything we need for the common edit. It cannot see a
+  /// code fence opened in a *different* paragraph — that is what the deferred
+  /// whole-document parse corrects.
+  @discardableResult
+  private func styleLocalParagraph(around editedRange: NSRange, in storage: NSTextStorage)
+    -> NSRange
+  {
+    let source = storage.mutableString
+    guard let para = paragraphs(covering: [editedRange], in: source).first, para.length > 0
+    else { return editedRange }
+    let substring = source.substring(with: para)
+    guard let localTree = block.parse(substring), let root = localTree.rootNode
+    else { return para }
+    storage.setAttributes(TextStyle.body.attributes, range: para)
+    // The local tree's byte offsets start at zero, so shift every styled range by
+    // the paragraph's document location.
+    styleBlock(root, in: storage, source: source, targets: [para], base: para.location)
+    return para
+  }
+
+  // MARK: Deferred full parse (on idle)
+
+  /// (Re)arms the debounced whole-document reparse. Each keystroke cancels the
+  /// previous timer, so the costly parse only runs after the user pauses.
+  private func scheduleFullParse(for storage: NSTextStorage) {
+    pendingParse?.cancel()
+    pendingParse = Task { [weak self] in
+      try? await Task.sleep(for: self?.fullParseDelay ?? .milliseconds(600))
+      guard !Task.isCancelled else { return }
+      self?.runFullParse(storage)
+    }
+  }
+
+  /// Performs the deferred incremental reparse: reparses the whole document
+  /// (reusing untouched subtrees), then restyles the paragraphs whose syntax
+  /// changed unioned with whatever the local parses styled optimistically. Runs
+  /// outside an edit transaction, so it brackets its own begin/endEditing.
+  private func runFullParse(_ storage: NSTextStorage) {
+    pendingParse = nil
+    guard let old = tree else { return }
+
+    let t0 = debugTiming ? CFAbsoluteTimeGetCurrent() : 0
     guard let newTree = block.parse(tree: old, readBlock: readBlock(for: storage)),
       let root = newTree.rootNode
     else {
       tree = nil  // force a clean full parse next time
       return
     }
-
-    // Safety net: an incremental reparse that collapses to an empty document
-    // over non-empty text is the documented release-mode corruption. Discard it
-    // and parse from scratch so styling stays correct.
-    if root.childCount == 0, newLength > 0 {
+    // Safety net: an incremental reparse that collapses to an empty document over
+    // non-empty text is the documented release-mode corruption — parse afresh.
+    // We're outside an edit transaction here, so bracket the fallback.
+    if root.childCount == 0, storage.length > 0 {
+      storage.beginEditing()
       fullRestyle(storage)
+      storage.endEditing()
       return
     }
 
     // Ranges whose syntax changed. tree-sitter's contract is
-    // changed(old_tree: edited, new_tree: reparsed); `old` is now the edited
-    // tree, so it is the receiver and `newTree` the argument.
+    // changed(old_tree: edited, new_tree: reparsed); `old` is the edited tree, so
+    // it is the receiver and `newTree` the argument.
     var targets = old.changedRanges(from: newTree).map { nsRange($0.bytes) }
     tree = newTree
+    if let dirty = dirtySpan { targets.append(dirty) }
+    dirtySpan = nil
 
-    // Always restyle the edited paragraph, unioned with any structural changes,
-    // each expanded to whole paragraphs so block styling aligns to line bounds.
-    targets.append(editedRange)
     let source = storage.mutableString
-    restyle(ranges: paragraphs(covering: targets, in: source), root: root, source: source, in: storage)
+    let expanded = paragraphs(covering: targets, in: source)
+    storage.beginEditing()
+    restyle(ranges: expanded, root: root, source: source, in: storage)
+    storage.endEditing()
+
+    if debugTiming {
+      let t1 = CFAbsoluteTimeGetCurrent()
+      let ms = { (a: CFAbsoluteTime, b: CFAbsoluteTime) in String(format: "%.2f", (b - a) * 1000) }
+      print(
+        "runFullParse: parse+changedRanges+restyle=\(ms(t0, t1))ms "
+          + "(restyleRanges=\(expanded.count) "
+          + "spanning \(expanded.reduce(0) { $0 + $1.length }) chars)")
+    }
+  }
+
+  /// Runs the debounced reparse synchronously instead of waiting out the timer.
+  /// The live editor relies on the debounce; tests use this to observe the
+  /// settled styling deterministically. A no-op when nothing is scheduled.
+  func flushPendingParse(_ storage: NSTextStorage) {
+    guard pendingParse != nil else { return }
+    pendingParse?.cancel()
+    runFullParse(storage)
+  }
+
+  /// Shifts a recorded dirty span to account for an edit that replaced
+  /// `start..<oldEnd` with `start..<(oldEnd + delta)`. An edit before the span
+  /// slides it; an edit overlapping it grows it; an edit after leaves it. Over-
+  /// covering is safe, so the overlap case just extends the span to span the edit.
+  private func shift(_ range: NSRange?, start: Int, oldEnd: Int, delta: Int) -> NSRange? {
+    guard let r = range else { return nil }
+    let end = r.location + r.length
+    if oldEnd <= r.location {
+      return NSRange(location: r.location + delta, length: r.length)
+    }
+    if start >= end {
+      return r
+    }
+    let lower = min(r.location, start)
+    let upper = max(end + delta, oldEnd + delta)
+    return NSRange(location: lower, length: max(0, upper - lower))
+  }
+
+  /// Smallest range covering both, or the non-nil one. Used to fold each edited
+  /// paragraph into the running dirty span.
+  private func union(_ a: NSRange?, _ b: NSRange) -> NSRange {
+    guard let a = a else { return b }
+    return NSUnionRange(a, b)
   }
 
   /// Parses `storage` from scratch and restyles the whole document. The shared
   /// fallback for the initial render, whole-document replacement, and a
   /// degenerate incremental parse.
   private func fullRestyle(_ storage: NSTextStorage) {
+    pendingParse?.cancel()
+    pendingParse = nil
+    dirtySpan = nil
     guard let root = freshParse(storage) else { return }
     restyle(
       ranges: [NSRange(location: 0, length: storage.length)], root: root,
@@ -266,10 +420,15 @@ final class MarkdownHighlighter: NSObject {
 
   // MARK: Block level
 
+  /// `base` is the document offset (UTF-16 code units) of the parsed text's
+  /// start: zero for the whole-document tree, the paragraph's location for a
+  /// local parse whose byte offsets restart at zero. It is folded into every
+  /// range conversion so styled ranges and `targets` are both in document
+  /// coordinates.
   private func styleBlock(
-    _ node: Node, in storage: NSTextStorage, source: NSString, targets: [NSRange]
+    _ node: Node, in storage: NSTextStorage, source: NSString, targets: [NSRange], base: Int = 0
   ) {
-    let range = nsRange(node.byteRange)
+    let range = nsRange(node.byteRange, base: base)
     guard intersects(range, targets) else { return }
 
     switch node.nodeType ?? "" {
@@ -279,7 +438,7 @@ final class MarkdownHighlighter: NSObject {
       applyCode(to: range, in: storage)
       return  // code is verbatim; don't descend for inline emphasis
     case "inline":
-      styleInline(node, range: range, in: storage, source: source)
+      styleInline(node, range: range, in: storage, source: source, base: base)
       return
     default:
       break
@@ -288,7 +447,7 @@ final class MarkdownHighlighter: NSObject {
     // recurse into children to find nested blocks and inlines
     for index in 0..<node.childCount {
       if let child = node.child(at: index) {
-        styleBlock(child, in: storage, source: source, targets: targets)
+        styleBlock(child, in: storage, source: source, targets: targets, base: base)
       }
     }
   }
@@ -314,33 +473,39 @@ final class MarkdownHighlighter: NSObject {
   // MARK: Inline level
 
   private func styleInline(
-    _ inlineNode: Node, range: NSRange, in storage: NSTextStorage, source: NSString
+    _ inlineNode: Node, range: NSRange, in storage: NSTextStorage, source: NSString, base: Int
   ) {
     let substring = source.substring(with: range)
     guard !substring.isEmpty else { return }
     guard let tree = inline.parse(substring), let root = tree.rootNode
     else { return }
-    walkInline(root, base: inlineNode.byteRange.lowerBound, in: storage)
+    // `inlineByteBase` places the re-parsed inline content within the block
+    // tree's byte space; `docBase` then shifts that to document coordinates.
+    walkInline(root, inlineByteBase: inlineNode.byteRange.lowerBound, docBase: base, in: storage)
   }
 
-  private func walkInline(_ node: Node, base: UInt32, in storage: NSTextStorage) {
-    let absolute = (node.byteRange.lowerBound + base)..<(node.byteRange.upperBound + base)
+  private func walkInline(
+    _ node: Node, inlineByteBase: UInt32, docBase: Int, in storage: NSTextStorage
+  ) {
+    let absolute =
+      (node.byteRange.lowerBound + inlineByteBase)..<(node.byteRange.upperBound + inlineByteBase)
     switch node.nodeType ?? "" {
     case "strong_emphasis":
-      addTrait(.boldTrait, to: nsRange(absolute), in: storage)
+      addTrait(.boldTrait, to: nsRange(absolute, base: docBase), in: storage)
     case "emphasis":
-      addTrait(.italicTrait, to: nsRange(absolute), in: storage)
+      addTrait(.italicTrait, to: nsRange(absolute, base: docBase), in: storage)
     case "code_span":
-      applyCode(to: nsRange(absolute), in: storage)
+      applyCode(to: nsRange(absolute, base: docBase), in: storage)
     case "strikethrough":
       storage.addAttribute(
-        .strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: nsRange(absolute))
+        .strikethroughStyle, value: NSUnderlineStyle.single.rawValue,
+        range: nsRange(absolute, base: docBase))
     default:
       break
     }
     for index in 0..<node.childCount {
       if let child = node.child(at: index) {
-        walkInline(child, base: base, in: storage)
+        walkInline(child, inlineByteBase: inlineByteBase, docBase: docBase, in: storage)
       }
     }
   }
@@ -374,12 +539,14 @@ final class MarkdownHighlighter: NSObject {
   // MARK: Range conversion
 
   /// Converts a tree-sitter UTF-16 byte range into an `NSRange` (UTF-16 code
-  /// units). Each code unit is two bytes, so the bounds halve cleanly; both are
-  /// clamped to the current length so a node reaching past the document yields a
-  /// valid (possibly empty) range rather than throwing when it's applied.
-  private func nsRange(_ byteRange: Range<UInt32>) -> NSRange {
-    let lower = min(Int(byteRange.lowerBound) / 2, length)
-    let upper = min(Int(byteRange.upperBound) / 2, length)
+  /// units). Each code unit is two bytes, so the bounds halve cleanly; `base`
+  /// (a code-unit document offset) shifts a local parse's zero-based ranges into
+  /// document coordinates; both are clamped to the current length so a node
+  /// reaching past the document yields a valid (possibly empty) range rather than
+  /// throwing when it's applied.
+  private func nsRange(_ byteRange: Range<UInt32>, base: Int = 0) -> NSRange {
+    let lower = min(Int(byteRange.lowerBound) / 2 + base, length)
+    let upper = min(Int(byteRange.upperBound) / 2 + base, length)
     return NSRange(location: lower, length: upper - lower)
   }
 

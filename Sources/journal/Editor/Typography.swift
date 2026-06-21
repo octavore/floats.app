@@ -64,6 +64,14 @@ enum TextStyle: String, CaseIterable, Identifiable {
     }
   }
 
+  var markdownPrefix: String {
+    switch self {
+    case .title: "# "
+    case .heading: "## "
+    case .body: ""
+    }
+  }
+
   /// Normalizes externally-pasted rich text into the journal's type system.
   ///
   /// We default to the body style, and copy over only bold/italic/underline traits from the

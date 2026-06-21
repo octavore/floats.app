@@ -43,11 +43,6 @@ struct EditorView: View {
             } label: {
               Label("Italic", systemImage: "italic")
             }
-            Button {
-              commands.send(.toggleUnderline)
-            } label: {
-              Label("Underline", systemImage: "underline")
-            }
           }
         }
       #endif

@@ -34,6 +34,9 @@ final class MarkdownHighlighterTests: XCTestCase {
       storage.replaceCharacters(
         in: NSRange(location: storage.length, length: 0), with: String(ch))
     }
+    // Settle the debounced whole-document reparse so multi-paragraph structure
+    // (a code fence) reaches the same state the live editor shows once idle.
+    highlighter.flushPendingParse(storage)
     return storage
   }
 
@@ -141,6 +144,7 @@ final class MarkdownHighlighterTests: XCTestCase {
     for (range, replacement) in edits {
       storage.replaceCharacters(in: range, with: replacement)
     }
+    highlighter.flushPendingParse(storage)
     let full = styled(storage.string)
     let md = storage.string
     for i in 0..<(md as NSString).length {

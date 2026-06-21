@@ -56,6 +56,9 @@ final class IncrementalFuzzTests: XCTestCase {
         }
       }
 
+      // The per-keystroke path styles only the edited paragraph; the
+      // whole-document reparse is debounced. Settle it before comparing.
+      highlighter.flushPendingParse(storage)
       let incremental = map(storage)
       let full = map(styledFresh(storage.string))
       if incremental != full {

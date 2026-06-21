@@ -22,6 +22,8 @@ final class TypingDiagnosticsTests: XCTestCase {
       for ch in markdown {
         tv.insertText(String(ch), replacementRange: tv.selectedRange())
       }
+      // Settle the debounced reparse so a fenced block spanning lines is styled.
+      highlighter.flushPendingParse(storage)
       return (tv, storage)
     }
 

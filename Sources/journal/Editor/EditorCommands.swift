@@ -3,7 +3,6 @@ import SwiftUI
 enum EditorCommand {
   case toggleBold
   case toggleItalic
-  case toggleUnderline
   case setBlockStyle(TextStyle)
 }
 

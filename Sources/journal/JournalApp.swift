@@ -27,8 +27,6 @@ struct FormatCommands: Commands {
         .keyboardShortcut("b")
       Button("Italic") { commands?.send(.toggleItalic) }
         .keyboardShortcut("i")
-      Button("Underline") { commands?.send(.toggleUnderline) }
-        .keyboardShortcut("u")
       Divider()
       ForEach(TextStyle.allCases) { style in
         Button(style.displayName) { commands?.send(.setBlockStyle(style)) }

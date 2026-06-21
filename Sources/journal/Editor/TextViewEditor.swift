@@ -76,132 +76,115 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
 
     private func handle(_ command: EditorCommand) {
       switch command {
-      case .toggleBold: toggleTrait(.boldTrait)
-      case .toggleItalic: toggleTrait(.italicTrait)
-      case .toggleUnderline: toggleUnderline()
-      case .setBlockStyle(let style): apply(style)
+      case .toggleBold: toggleInlineMarker("**")
+      case .toggleItalic: toggleInlineMarker("*")
+      case .setBlockStyle(let style): applyBlockPrefix(style)
       }
     }
 
-    // MARK: Inline traits
+    // MARK: Inline markers
 
-    private func toggleTrait(_ trait: FontTraits) {
-      mutateSelection { tv in
-        // Caret only: flip the trait for whatever gets typed next.
-        tv.typingAttributes[.font] = font(tv.typingAttributes[.font]).toggling(trait)
-      } selection: { storage, selection in
-        // Match the platforms' convention for mixed runs: if anything
-        // in the selection lacks the trait, add it everywhere; only a
-        // uniformly-styled selection toggles off.
-        var allHaveTrait = true
-        storage.enumerateAttribute(.font, in: selection) { value, _, stop in
-          if !font(value).traits.contains(trait) {
-            allHaveTrait = false
-            stop.pointee = true
-          }
-        }
-        storage.enumerateAttribute(.font, in: selection) { value, range, _ in
-          let f = font(value)
-          let traits =
-            allHaveTrait
-            ? f.traits.subtracting(trait) : f.traits.union(trait)
-          storage.addAttribute(.font, value: f.with(traits: traits), range: range)
-        }
-      }
-    }
-
-    private func toggleUnderline() {
-      mutateSelection { tv in
-        if (tv.typingAttributes[.underlineStyle] as? Int ?? 0) == 0 {
-          tv.typingAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
-        } else {
-          tv.typingAttributes.removeValue(forKey: .underlineStyle)
-        }
-      } selection: { storage, selection in
-        var allUnderlined = true
-        storage.enumerateAttribute(.underlineStyle, in: selection) { value, _, stop in
-          if (value as? Int ?? 0) == 0 {
-            allUnderlined = false
-            stop.pointee = true
-          }
-        }
-        if allUnderlined {
-          storage.removeAttribute(.underlineStyle, range: selection)
-        } else {
-          storage.addAttribute(
-            .underlineStyle, value: NSUnderlineStyle.single.rawValue,
-            range: selection)
-        }
-      }
-    }
-
-    // MARK: Block styles
-
-    /// Restyles every paragraph touched by the selection, keeping any
-    /// bold/italic the writer applied within it.
-    private func apply(_ style: TextStyle) {
+    /// Wraps the selection in `marker` on both sides, or removes the markers
+    /// if the selection is already wrapped. With no selection, inserts the
+    /// marker pair and places the cursor between them.
+    private func toggleInlineMarker(_ marker: String) {
       guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+      let sel = tv.selectedRange
+      let str = storage.mutableString
+      let mLen = (marker as NSString).length
 
-      // apply to the typing attributes so new text gets the new style
-      tv.typingAttributes = style.attributes
+      guard sel.length > 0 else {
+        // Caret: place a marker pair and put the cursor between them.
+        replaceText(marker + marker, in: sel,
+                    thenSelect: NSRange(location: sel.location + mLen, length: 0))
+        return
+      }
 
-      // get selected paragraphs and apply the new paragraph style to all
-      // also preserve any bold/italic traits within the paragraphs
-      let paragraphs = (storage.string as NSString)
-        .paragraphRange(for: tv.selectedRange)
-      if paragraphs.length > 0 {
-        performEdit(in: paragraphs) { storage in
-          storage.addAttribute(
-            .paragraphStyle, value: style.paragraphStyle, range: paragraphs)
-          storage.enumerateAttribute(.font, in: paragraphs) { value, range, _ in
-            let old = font(value)
-            // keep existing bold/italic traits
-            let kept = old.traits.intersection([.boldTrait, .italicTrait])
-            // apply the new style's font traits (e.g. weight, size)
-            let font = style.font.with(traits: style.font.traits.union(kept))
-            storage.addAttribute(.font, value: font, range: range)
-          }
+      // Markers just outside the selection → remove them.
+      if sel.location >= mLen, sel.location + sel.length + mLen <= str.length {
+        let before = str.substring(with: NSRange(location: sel.location - mLen, length: mLen))
+        let after = str.substring(with: NSRange(location: sel.location + sel.length, length: mLen))
+        if before == marker && after == marker {
+          let inner = str.substring(with: sel)
+          let outerRange = NSRange(location: sel.location - mLen, length: sel.length + mLen * 2)
+          replaceText(inner, in: outerRange,
+                      thenSelect: NSRange(location: sel.location - mLen, length: sel.length))
+          return
         }
       }
+
+      // Markers inside the selection → remove them.
+      if sel.length >= mLen * 2 {
+        let selectedStr = str.substring(with: sel)
+        if selectedStr.hasPrefix(marker) && selectedStr.hasSuffix(marker) {
+          let innerLen = sel.length - mLen * 2
+          let inner = (selectedStr as NSString).substring(with: NSRange(location: mLen, length: innerLen))
+          replaceText(inner, in: sel, thenSelect: NSRange(location: sel.location, length: innerLen))
+          return
+        }
+      }
+
+      // Wrap the selection.
+      let selectedStr = str.substring(with: sel)
+      replaceText("\(marker)\(selectedStr)\(marker)", in: sel,
+                  thenSelect: NSRange(location: sel.location + mLen, length: sel.length))
+    }
+
+    // MARK: Block prefixes
+
+    /// Replaces the heading prefix on the current paragraph with the one for
+    /// `style` (e.g. `# ` for title, `## ` for heading, none for body).
+    private func applyBlockPrefix(_ style: TextStyle) {
+      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+      let str = storage.mutableString
+      let sel = tv.selectedRange
+      let paraStart = str.paragraphRange(for: sel).location
+
+      // Strip any existing heading prefix (longest first to avoid partial matches).
+      let knownPrefixes = ["## ", "# "]
+      var existingLen = 0
+      for prefix in knownPrefixes {
+        let pLen = (prefix as NSString).length
+        guard paraStart + pLen <= str.length else { continue }
+        if str.substring(with: NSRange(location: paraStart, length: pLen)) == prefix {
+          existingLen = pLen
+          break
+        }
+      }
+
+      let newPrefix = style.markdownPrefix
+      let newPrefixLen = (newPrefix as NSString).length
+      let replacementRange = NSRange(location: paraStart, length: existingLen)
+
+      // Keep the cursor in the content, not stranded inside the removed prefix.
+      let delta = newPrefixLen - existingLen
+      let adjustedSel: NSRange = {
+        guard sel.location > paraStart + existingLen else {
+          return NSRange(location: paraStart + newPrefixLen, length: 0)
+        }
+        return NSRange(location: sel.location + delta, length: sel.length)
+      }()
+
+      replaceText(newPrefix, in: replacementRange, thenSelect: adjustedSel)
     }
 
     // MARK: Plumbing
 
-    /// A font attribute value, or the body font when a run is missing one.
-    private func font(_ value: Any?) -> PlatformFont {
-      value as? PlatformFont ?? TextStyle.body.font
-    }
-
-    /// Shared scaffold for the inline toggles: routes a caret-only edit to
-    /// the typing attributes, and a ranged selection through `performEdit`.
-    private func mutateSelection(
-      caret: (PlatformTextView) -> Void,
-      selection: (NSTextStorage, NSRange) -> Void
-    ) {
-      guard let tv = textView else { return }
-      let range = tv.selectedRange
-      guard range.length > 0 else {
-        caret(tv)
-        return
-      }
-      performEdit(in: range) { selection($0, range) }
-    }
-
-    /// Runs a programmatic attribute edit with undo support (macOS) and
-    /// pushes the result back through the binding.
-    private func performEdit(in range: NSRange, _ edit: (NSTextStorage) -> Void) {
+    /// Replaces raw text in the storage with full undo support and binding sync.
+    private func replaceText(_ string: String, in range: NSRange, thenSelect selectRange: NSRange) {
       guard let tv = textView, let storage = tv.optionalTextStorage else { return }
       #if canImport(AppKit)
-        guard tv.shouldChangeText(in: range, replacementString: nil) else { return }
+        guard tv.shouldChangeText(in: range, replacementString: string) else { return }
       #endif
       storage.beginEditing()
-      edit(storage)
+      storage.replaceCharacters(in: range, with: string)
       storage.endEditing()
       #if canImport(AppKit)
-        // Registers undo and fires textDidChange, which syncs the binding.
+        tv.setSelectedRange(selectRange)
         tv.didChangeText()
       #else
-        text = AttributedString(storage)
+        tv.selectedRange = selectRange
+        scheduleBindingSync()
       #endif
     }
   }
