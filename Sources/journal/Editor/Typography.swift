@@ -6,6 +6,69 @@ import SwiftUI
   import AppKit
 #endif
 
+/// The user-selectable typeface for the editor. Each case maps to one of the
+/// system's built-in font *designs*, so every style in the type scale gets a
+/// matching face at its own size and weight (a serif title and serif body, etc.)
+/// while still adapting to Dynamic Type and dark mode like the system font.
+enum JournalFont: String, CaseIterable, Identifiable {
+  case system
+  case serif
+  case rounded
+  case monospaced
+
+  var id: String { rawValue }
+
+  /// Key under which the choice is persisted (shared by `@AppStorage` in the UI
+  /// and the `UserDefaults` read that seeds `Typography.current` at launch).
+  static let defaultsKey = "journalFont"
+
+  var displayName: String {
+    switch self {
+    case .system: "System"
+    case .serif: "Serif"
+    case .rounded: "Rounded"
+    case .monospaced: "Monospaced"
+    }
+  }
+
+  private var design: FontDesign {
+    switch self {
+    case .system: .default
+    case .serif: .serif
+    case .rounded: .rounded
+    case .monospaced: .monospaced
+    }
+  }
+
+  /// The platform font for this face at a given size and weight.
+  func font(ofSize size: CGFloat, weight: PlatformFont.Weight) -> PlatformFont {
+    .journal(ofSize: size, weight: weight, design: design)
+  }
+
+  /// A SwiftUI font for previewing the face in the settings picker.
+  var previewFont: Font {
+    switch self {
+    case .system: .system(size: 15)
+    case .serif: .system(size: 15, design: .serif)
+    case .rounded: .system(size: 15, design: .rounded)
+    case .monospaced: .system(size: 15, design: .monospaced)
+    }
+  }
+}
+
+/// Global, app-wide typography state. `TextStyle.font` reads `current`, so
+/// changing it and restyling the document switches the whole editor's typeface.
+/// Seeded from `UserDefaults` at launch so the first render already uses the
+/// saved font, then kept in sync by the editor when the setting changes.
+enum Typography {
+  // Read and written only on the main actor (the editor and its highlighter),
+  // but `TextStyle.font` is nonisolated, so opt out of the global-actor check.
+  nonisolated(unsafe) static var current: JournalFont = {
+    UserDefaults.standard.string(forKey: JournalFont.defaultsKey)
+      .flatMap(JournalFont.init(rawValue:)) ?? .system
+  }()
+}
+
 /// The journal's type scale: every block of text is one of these styles.
 /// A style owns both the font and the paragraph treatment (line height,
 /// spacing), so changing the scale here restyles the whole app.
@@ -26,9 +89,9 @@ enum TextStyle: String, CaseIterable, Identifiable {
 
   var font: PlatformFont {
     switch self {
-    case .title: .systemFont(ofSize: 28, weight: .bold)
-    case .heading: .systemFont(ofSize: 22, weight: .semibold)
-    case .body: .systemFont(ofSize: 17)
+    case .title: Typography.current.font(ofSize: 28, weight: .bold)
+    case .heading: Typography.current.font(ofSize: 22, weight: .semibold)
+    case .body: Typography.current.font(ofSize: 17, weight: .regular)
     }
   }
 

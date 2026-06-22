@@ -22,10 +22,17 @@
       tv.textStorage.delegate = context.coordinator.highlighter
       context.coordinator.textView = tv
       context.coordinator.observeKeyboard(for: tv)
+      // Seed the applied face so the first updateUIView only restyles if the
+      // saved font differs from the typing attributes set above.
+      Typography.current = fontFamily
+      context.coordinator.appliedFont = fontFamily
       return tv
     }
 
     func updateUIView(_ tv: UITextView, context: Context) {
+      // Switch typeface first; if it changed, the document was just restyled and
+      // the binding resynced, so skip the storage rebuild below.
+      if context.coordinator.applyFont(fontFamily) { return }
       // While the text view is the live source of truth (typing in flight, its
       // binding sync still pending), don't rebuild the storage from the binding.
       if context.coordinator.isSyncingFromTextView { return }

@@ -12,6 +12,14 @@ struct JournalApp: App {
     .commands {
       FormatCommands()
     }
+
+    // macOS shows this as the standard Settings window (⌘,). On iOS the same
+    // view is presented from EditorView as a sheet.
+    #if os(macOS)
+      Settings {
+        SettingsView()
+      }
+    #endif
   }
 }
 

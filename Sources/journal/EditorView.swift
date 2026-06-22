@@ -7,8 +7,24 @@ struct EditorView: View {
   @State private var text = AttributedString()
   @State private var commands = EditorCommands()
 
+  // The selected typeface, shared with SettingsView through the same defaults
+  // key; changing it there re-renders this view and restyles the editor.
+  @AppStorage(JournalFont.defaultsKey) private var fontFamily: JournalFont = .system
+
+  #if os(iOS)
+    @State private var showingSettings = false
+  #endif
+
+  /// The editor backend configured with the current typeface. Built here rather
+  /// than inline so `fontFamily` can be set after the `JournalEditor` init.
+  private var editor: ActiveEditor {
+    var editor = ActiveEditor(text: $text, commands: commands)
+    editor.fontFamily = fontFamily
+    return editor
+  }
+
   var body: some View {
-    ActiveEditor(text: $text, commands: commands)
+    editor
       // Fills the window so the scrollbar sits at the window's edge; the
       // text itself is kept to a readable column inside the text view.
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -43,7 +59,15 @@ struct EditorView: View {
             } label: {
               Label("Italic", systemImage: "italic")
             }
+            Button {
+              showingSettings = true
+            } label: {
+              Label("Settings", systemImage: "gearshape")
+            }
           }
+        }
+        .sheet(isPresented: $showingSettings) {
+          SettingsView()
         }
       #endif
   }

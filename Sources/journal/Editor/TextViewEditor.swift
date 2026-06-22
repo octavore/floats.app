@@ -13,12 +13,25 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
   @Binding var text: AttributedString
   let commands: EditorCommands
 
+  /// The user-selected typeface. Set by `EditorView` after construction; the
+  /// `JournalEditor` init (`init(text:commands:)`) leaves it at the default.
+  var fontFamily: JournalFont = .system
+
+  init(text: Binding<AttributedString>, commands: EditorCommands) {
+    self._text = text
+    self.commands = commands
+  }
+
   func makeCoordinator() -> Coordinator { Coordinator(text: $text, commands: commands) }
 
   @MainActor
   final class Coordinator: NSObject {
     @Binding var text: AttributedString
     weak var textView: PlatformTextView?
+
+    // The typeface currently applied to the text view, so a no-op `updateXxxView`
+    // (the common case) doesn't needlessly restyle the whole document.
+    var appliedFont: JournalFont?
 
     // Derives formatting from the text as Markdown on every change.
     let highlighter = MarkdownHighlighter()
@@ -48,6 +61,28 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
 
     deinit {
       observerTokens.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    // MARK: Typeface
+
+    /// Switches the editor to `family` if it isn't already active: updates the
+    /// global typography state, restyles the whole document from Markdown so
+    /// every block picks up the new face, and resets the typing attributes so
+    /// freshly typed text matches. Returns whether it made a change, so the
+    /// caller can skip the rest of its update pass (which would otherwise rebuild
+    /// the storage from the binding's now-stale fonts). No-op until the face
+    /// actually changes, keeping the steady-state update path free.
+    @discardableResult
+    func applyFont(_ family: JournalFont) -> Bool {
+      guard appliedFont != family else { return false }
+      appliedFont = family
+      Typography.current = family
+      guard let tv = textView, let storage = tv.optionalTextStorage else { return false }
+      tv.typingAttributes = TextStyle.body.attributes
+      highlighter.highlight(storage)
+      // Push the restyled fonts up so the binding matches the storage again.
+      text = AttributedString(storage)
+      return true
     }
 
     // MARK: Binding sync

@@ -9,6 +9,7 @@ import SwiftUI
   typealias PlatformColor = UIColor
   typealias PlatformTextView = UITextView
   typealias FontTraits = UIFontDescriptor.SymbolicTraits
+  typealias FontDesign = UIFontDescriptor.SystemDesign
 
   extension FontTraits {
     static let boldTrait = traitBold
@@ -28,6 +29,7 @@ import SwiftUI
   typealias PlatformColor = NSColor
   typealias PlatformTextView = NSTextView
   typealias FontTraits = NSFontDescriptor.SymbolicTraits
+  typealias FontDesign = NSFontDescriptor.SystemDesign
 
   extension FontTraits {
     static let boldTrait = bold
@@ -65,5 +67,18 @@ extension PlatformFont {
 
   func toggling(_ trait: FontTraits) -> PlatformFont {
     with(traits: traits.symmetricDifference(trait))
+  }
+
+  /// A system font of the given size and weight in one of the built-in system
+  /// *designs* (default, serif, rounded, monospaced). Falls back to the plain
+  /// system font if the design has no variant at this size/weight.
+  static func journal(ofSize size: CGFloat, weight: Weight, design: FontDesign) -> PlatformFont {
+    let base = systemFont(ofSize: size, weight: weight)
+    guard let descriptor = base.fontDescriptor.withDesign(design) else { return base }
+    #if canImport(UIKit)
+      return PlatformFont(descriptor: descriptor, size: size)
+    #elseif canImport(AppKit)
+      return PlatformFont(descriptor: descriptor, size: size) ?? base
+    #endif
   }
 }
