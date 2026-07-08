@@ -4,6 +4,8 @@ enum EditorCommand {
   case toggleBold
   case toggleItalic
   case setBlockStyle(TextStyle)
+  case increaseFontSize
+  case decreaseFontSize
 }
 
 /// Bridge from SwiftUI controls into the active editor backend. The view

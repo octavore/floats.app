@@ -3,19 +3,19 @@ import SwiftUI
 /// Geometry shared by both platform backends: the text sits in a centered
 /// column at most `maxTextWidth` wide, with `minInset` of breathing room on
 /// narrow views, while the scroll view itself spans the whole window.
-enum JournalLayout {
+enum FloatsLayout {
   static let maxTextWidth: CGFloat = 720
-  static let minInset: CGFloat = 16
-  static let verticalInset: CGFloat = 24
+  static let minInset: CGFloat = 28
+  static let verticalInset: CGFloat = 12
 }
 
-struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
+struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
   @Binding var text: AttributedString
   let commands: EditorCommands
 
   /// The user-selected typeface. Set by `EditorView` after construction; the
-  /// `JournalEditor` init (`init(text:commands:)`) leaves it at the default.
-  var fontFamily: JournalFont = .system
+  /// `FloatsEditor` init (`init(text:commands:)`) leaves it at the default.
+  var fontFamily: FloatsFont = .system
 
   init(text: Binding<AttributedString>, commands: EditorCommands) {
     self._text = text
@@ -31,7 +31,7 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
 
     // The typeface currently applied to the text view, so a no-op `updateXxxView`
     // (the common case) doesn't needlessly restyle the whole document.
-    var appliedFont: JournalFont?
+    var appliedFont: FloatsFont?
 
     // Derives formatting from the text as Markdown on every change.
     let highlighter = MarkdownHighlighter()
@@ -73,16 +73,29 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
     /// the storage from the binding's now-stale fonts). No-op until the face
     /// actually changes, keeping the steady-state update path free.
     @discardableResult
-    func applyFont(_ family: JournalFont) -> Bool {
+    func applyFont(_ family: FloatsFont) -> Bool {
       guard appliedFont != family else { return false }
       appliedFont = family
       Typography.current = family
-      guard let tv = textView, let storage = tv.optionalTextStorage else { return false }
+      restyleDocument()
+      return true
+    }
+
+    /// Nudges the global font-size scale up or down a step and restyles the
+    /// document, same as switching typeface. No-op at the min/max clamp.
+    private func adjustFontSize(by direction: Int) {
+      guard Typography.adjustFontScale(by: direction) else { return }
+      restyleDocument()
+    }
+
+    /// Re-derives every block's attributes from the current typeface and font
+    /// scale and pushes the result back through the binding.
+    private func restyleDocument() {
+      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
       tv.typingAttributes = TextStyle.body.attributes
       highlighter.highlight(storage)
       // Push the restyled fonts up so the binding matches the storage again.
       text = AttributedString(storage)
-      return true
     }
 
     // MARK: Binding sync
@@ -114,6 +127,8 @@ struct TextViewEditor: PlatformViewRepresentable, JournalEditor {
       case .toggleBold: toggleInlineMarker("**")
       case .toggleItalic: toggleInlineMarker("*")
       case .setBlockStyle(let style): applyBlockPrefix(style)
+      case .increaseFontSize: adjustFontSize(by: 1)
+      case .decreaseFontSize: adjustFontSize(by: -1)
       }
     }
 

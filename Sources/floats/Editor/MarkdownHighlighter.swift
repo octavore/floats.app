@@ -9,7 +9,7 @@ import TreeSitterMarkdownInline
   import AppKit
 #endif
 
-/// Derives the journal's formatting from the text *as Markdown* rather than
+/// Derives the app's formatting from the text *as Markdown* rather than
 /// from stored rich-text attributes. The block grammar finds headings and code
 /// blocks; the inline grammar finds emphasis and code spans within each
 /// paragraph's content. The Markdown source stays the single source of truth

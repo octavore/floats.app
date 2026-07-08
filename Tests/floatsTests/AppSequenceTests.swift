@@ -6,7 +6,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// Replays the *exact* keystroke sequence from the live-app repro: an empty
 /// initial highlight (the load path), then "# hello\n" followed by "a `code` b"

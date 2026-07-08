@@ -7,7 +7,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// The editor pushes styling up through an `AttributedString` binding
 /// (`text = AttributedString(storage)`) and rebuilds the text view from it

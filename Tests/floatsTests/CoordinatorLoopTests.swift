@@ -5,7 +5,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// Reproduces the *entire* macOS editing loop: a real NSTextView wired to the
 /// real `Coordinator` as its delegate, typing through `insertText` (which fires

@@ -10,7 +10,7 @@ import SwiftUI
 /// system's built-in font *designs*, so every style in the type scale gets a
 /// matching face at its own size and weight (a serif title and serif body, etc.)
 /// while still adapting to Dynamic Type and dark mode like the system font.
-enum JournalFont: String, CaseIterable, Identifiable {
+enum FloatsFont: String, CaseIterable, Identifiable {
   case system
   case serif
   case rounded
@@ -20,7 +20,7 @@ enum JournalFont: String, CaseIterable, Identifiable {
 
   /// Key under which the choice is persisted (shared by `@AppStorage` in the UI
   /// and the `UserDefaults` read that seeds `Typography.current` at launch).
-  static let defaultsKey = "journalFont"
+  static let defaultsKey = "floatsFont"
 
   var displayName: String {
     switch self {
@@ -42,7 +42,7 @@ enum JournalFont: String, CaseIterable, Identifiable {
 
   /// The platform font for this face at a given size and weight.
   func font(ofSize size: CGFloat, weight: PlatformFont.Weight) -> PlatformFont {
-    .journal(ofSize: size, weight: weight, design: design)
+    .floats(ofSize: size, weight: weight, design: design)
   }
 
   /// A SwiftUI font for previewing the face in the settings picker.
@@ -63,13 +63,40 @@ enum JournalFont: String, CaseIterable, Identifiable {
 enum Typography {
   // Read and written only on the main actor (the editor and its highlighter),
   // but `TextStyle.font` is nonisolated, so opt out of the global-actor check.
-  nonisolated(unsafe) static var current: JournalFont = {
-    UserDefaults.standard.string(forKey: JournalFont.defaultsKey)
-      .flatMap(JournalFont.init(rawValue:)) ?? .system
+  nonisolated(unsafe) static var current: FloatsFont = {
+    UserDefaults.standard.string(forKey: FloatsFont.defaultsKey)
+      .flatMap(FloatsFont.init(rawValue:)) ?? .system
   }()
+
+  /// Multiplier applied to every `TextStyle`'s base point size. Adjusted a step
+  /// at a time by the Format menu's Increase/Decrease Font Size commands
+  /// (⌘+ / ⌘-) and persisted so it survives relaunch.
+  nonisolated(unsafe) static var fontScale: Double = {
+    let stored = UserDefaults.standard.double(forKey: fontScaleDefaultsKey)
+    return stored == 0 ? 1 : stored
+  }()
+
+  static let fontScaleDefaultsKey = "fontScale"
+  private static let minFontScale = 0.75
+  private static let maxFontScale = 2.0
+  private static let fontScaleStep = 0.1
+
+  /// Nudges `fontScale` one step in `direction` (positive to grow, negative to
+  /// shrink), clamped to the allowed range, and persists the result. Returns
+  /// whether the scale actually changed, so callers can skip restyling at the
+  /// clamp's edge.
+  @discardableResult
+  static func adjustFontScale(by direction: Int) -> Bool {
+    let stepped = fontScale + Double(direction) * fontScaleStep
+    let clamped = min(maxFontScale, max(minFontScale, stepped))
+    guard abs(clamped - fontScale) > .ulpOfOne else { return false }
+    fontScale = clamped
+    UserDefaults.standard.set(clamped, forKey: fontScaleDefaultsKey)
+    return true
+  }
 }
 
-/// The journal's type scale: every block of text is one of these styles.
+/// The app's type scale: every block of text is one of these styles.
 /// A style owns both the font and the paragraph treatment (line height,
 /// spacing), so changing the scale here restyles the whole app.
 enum TextStyle: String, CaseIterable, Identifiable {
@@ -89,9 +116,9 @@ enum TextStyle: String, CaseIterable, Identifiable {
 
   var font: PlatformFont {
     switch self {
-    case .title: Typography.current.font(ofSize: 28, weight: .bold)
-    case .heading: Typography.current.font(ofSize: 22, weight: .semibold)
-    case .body: Typography.current.font(ofSize: 17, weight: .regular)
+    case .title: Typography.current.font(ofSize: 28 * Typography.fontScale, weight: .bold)
+    case .heading: Typography.current.font(ofSize: 22 * Typography.fontScale, weight: .semibold)
+    case .body: Typography.current.font(ofSize: 17 * Typography.fontScale, weight: .regular)
     }
   }
 
@@ -135,7 +162,7 @@ enum TextStyle: String, CaseIterable, Identifiable {
     }
   }
 
-  /// Normalizes externally-pasted rich text into the journal's type system.
+  /// Normalizes externally-pasted rich text into the app's type system.
   ///
   /// We default to the body style, and copy over only bold/italic/underline traits from the
   /// pasted content. All `NSTextAttachment`s (inline images, list markers, etc) and fonts

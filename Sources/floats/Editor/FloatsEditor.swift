@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Protocol describing editor backend. Aliased to `ActiveEditor`. Backends are
 /// initialized with a `Binding<AttributedString>`.
-protocol JournalEditor: View {
+protocol FloatsEditor: View {
   init(text: Binding<AttributedString>, commands: EditorCommands)
 }
 

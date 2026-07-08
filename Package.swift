@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "journal",
+    name: "floats",
     platforms: [.macOS(.v14), .iOS(.v18)],
     dependencies: [
         .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.8.0"),
@@ -12,17 +12,17 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "journal",
+            name: "floats",
             dependencies: [
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterMarkdown", package: "tree-sitter-markdown"),
             ],
-            path: "Sources/journal"
+            path: "Sources/floats"
         ),
         .testTarget(
-            name: "journalTests",
-            dependencies: ["journal"],
-            path: "Tests/journalTests"
+            name: "floatsTests",
+            dependencies: ["floats"],
+            path: "Tests/floatsTests"
         ),
     ]
 )

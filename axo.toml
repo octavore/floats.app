@@ -1,22 +1,17 @@
-project_name = "journal.app"
+project_name = "floats.app"
 
 [tasks]
-format = {
-  command = "swift format --in-place --recursive Sources",
-  description = "Format Swift sources in place"
-}
-build = {
-  command = "strudel bundle",
-  # command = "strudel build",
-  # env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
-}
-release = {
-  command = "strudel release",
-  # env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
-}
-sim = "strudel sim"
+format = "swift format --in-place --recursive Sources"
+
+build = "strudel build"
+install = "strudel build --install"
+release = "strudel build --install"
+test = "swift test --skip PerformanceTests"
+"test:all" = "swift test"
+
+# sim = "strudel sim"
 device = {
-  command = "strudel device",
+  command = "strudel run --device",
   env = {
     APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert",
     APPLE_API_ISSUER = "axo://apple/app-store-connect/api-issuer-id",

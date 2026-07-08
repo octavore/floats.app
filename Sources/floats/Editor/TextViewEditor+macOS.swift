@@ -9,13 +9,13 @@
       scroll.drawsBackground = false
       scroll.borderType = .noBorder
 
-      let tv = JournalTextView(frame: .zero)
+      let tv = FloatsTextView(frame: .zero)
       tv.delegate = context.coordinator
       tv.isRichText = true
       tv.allowsUndo = true
       tv.drawsBackground = false
       tv.textContainerInset = NSSize(
-        width: JournalLayout.minInset, height: JournalLayout.verticalInset)
+        width: FloatsLayout.minInset, height: FloatsLayout.verticalInset)
       tv.typingAttributes = TextStyle.body.attributes
       tv.isVerticallyResizable = true
       tv.isHorizontallyResizable = false
@@ -67,10 +67,10 @@
     }
   }
 
-  /// An `NSTextView` that normalizes pasted rich text into the journal's type
+  /// An `NSTextView` that normalizes pasted rich text into the app's type
   /// system instead of dumping in foreign fonts and attachments, and keeps the
   /// text in a centered, readable column while filling the scroll view.
-  final class JournalTextView: NSTextView {
+  final class FloatsTextView: NSTextView {
     // Above the column width only the centering inset changes, not the text
     // layout. Without this, the view blits its cached bitmap during a live
     // resize and only re-centers once resizing stops; opting out forces a
@@ -82,9 +82,9 @@
     // which left the centered column lagging behind the window edge.
     override func resize(withOldSuperviewSize oldSize: NSSize) {
       super.resize(withOldSuperviewSize: oldSize)
-      let inset = max(JournalLayout.minInset, (bounds.width - JournalLayout.maxTextWidth) / 2)
+      let inset = max(FloatsLayout.minInset, (bounds.width - FloatsLayout.maxTextWidth) / 2)
       if abs(textContainerInset.width - inset) > 0.5 {
-        textContainerInset = NSSize(width: inset, height: JournalLayout.verticalInset)
+        textContainerInset = NSSize(width: inset, height: FloatsLayout.verticalInset)
       }
     }
 

@@ -6,7 +6,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// Exercises `MarkdownHighlighter` directly against an `NSTextStorage`, both for
 /// a one-shot parse and for the incremental "type a character at a time" path the

@@ -4,7 +4,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// Drives a *real* NSTextView the way a person types — each keystroke goes
 /// through `insertText` (which uses `typingAttributes`) and then the highlighter,

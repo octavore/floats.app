@@ -6,7 +6,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// Property test: after any random sequence of edits, the incrementally-parsed
 /// styling must equal a fresh one-shot parse of the same text. A divergence

@@ -6,7 +6,7 @@ import XCTest
   import AppKit
 #endif
 
-@testable import journal
+@testable import floats
 
 /// Isolates the per-keystroke costs on a large (≈1.1M character, "Moby
 /// Dick"-sized) document so we can see where the latency actually is:

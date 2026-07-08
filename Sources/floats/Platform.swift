@@ -72,7 +72,7 @@ extension PlatformFont {
   /// A system font of the given size and weight in one of the built-in system
   /// *designs* (default, serif, rounded, monospaced). Falls back to the plain
   /// system font if the design has no variant at this size/weight.
-  static func journal(ofSize size: CGFloat, weight: Weight, design: FontDesign) -> PlatformFont {
+  static func floats(ofSize size: CGFloat, weight: Weight, design: FontDesign) -> PlatformFont {
     let base = systemFont(ofSize: size, weight: weight)
     guard let descriptor = base.fontDescriptor.withDesign(design) else { return base }
     #if canImport(UIKit)

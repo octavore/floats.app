@@ -5,13 +5,13 @@
 
   extension TextViewEditor {
     func makeUIView(context: Context) -> UITextView {
-      let tv = JournalTextView()
+      let tv = FloatsTextView()
       tv.delegate = context.coordinator
       tv.backgroundColor = .clear
       tv.alwaysBounceVertical = true
       tv.textContainerInset = UIEdgeInsets(
-        top: JournalLayout.verticalInset, left: JournalLayout.minInset,
-        bottom: JournalLayout.verticalInset, right: JournalLayout.minInset)
+        top: FloatsLayout.verticalInset, left: FloatsLayout.minInset,
+        bottom: FloatsLayout.verticalInset, right: FloatsLayout.minInset)
       // Native bold/italic/underline in the selection edit menu. Note:
       // attribute-only edits made there bypass textViewDidChange, so the
       // binding catches up on the next text change.
@@ -82,27 +82,27 @@
     }
   }
 
-  /// A `UITextView` that normalizes pasted rich text into the journal's type
+  /// A `UITextView` that normalizes pasted rich text into the app's type
   /// system instead of dumping in foreign fonts and attachments, keeps the
   /// text in a centered, readable column on wide (iPad) layouts, and opts out
   /// of intrinsic content sizing so SwiftUI lets it scroll.
-  final class JournalTextView: UITextView {
+  final class FloatsTextView: UITextView {
     override var intrinsicContentSize: CGSize {
       CGSize(width: UIView.noIntrinsicMetric, height: UIView.noIntrinsicMetric)
     }
 
     override func layoutSubviews() {
       super.layoutSubviews()
-      let inset = max(JournalLayout.minInset, (bounds.width - JournalLayout.maxTextWidth) / 2)
+      let inset = max(FloatsLayout.minInset, (bounds.width - FloatsLayout.maxTextWidth) / 2)
       if abs(textContainerInset.left - inset) > 0.5 {
         textContainerInset = UIEdgeInsets(
-          top: JournalLayout.verticalInset, left: inset,
-          bottom: JournalLayout.verticalInset, right: inset)
+          top: FloatsLayout.verticalInset, left: inset,
+          bottom: FloatsLayout.verticalInset, right: inset)
       }
     }
 
     override func paste(_ sender: Any?) {
-      guard let pasted = UIPasteboard.general.journalAttributedString() else {
+      guard let pasted = UIPasteboard.general.floatsAttributedString() else {
         super.paste(sender)
         return
       }
@@ -117,7 +117,7 @@
   extension UIPasteboard {
     /// Best available attributed representation of the pasteboard: RTF when
     /// present (attachments are stripped downstream), else plain text.
-    fileprivate func journalAttributedString() -> NSAttributedString? {
+    fileprivate func floatsAttributedString() -> NSAttributedString? {
       if let data = data(forPasteboardType: UTType.rtf.identifier),
         let attr = try? NSAttributedString(
           data: data,
