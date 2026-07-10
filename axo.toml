@@ -1,21 +1,28 @@
-project_name = "floats.app"
+project_name = "floats"
 
 [tasks]
 format = "swift format --in-place --recursive Sources"
+clean = "strudel clean"
 
-build = "strudel build"
-install = "strudel build --install"
-release = "strudel build --install"
-test = "swift test --skip PerformanceTests"
-"test:all" = "swift test"
+run = {
+  command = "strudel run",
+  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+}
+build = {
+  command = "strudel build",
+  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+}
+install = ":build --install"
 
-# sim = "strudel sim"
-device = {
-  command = "strudel run --device",
+release = {
+  command = "strudel release",
   env = {
-    APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert",
+    APPLE_SIGNING_IDENTITY = "axo://apple/developer/developer-app-cert",
     APPLE_API_ISSUER = "axo://apple/app-store-connect/api-issuer-id",
-    APPLE_API_KEY = "axo://apple/app-store-admin/api-key-id",
-    APPLE_API_KEY_PATH = "axo://apple/app-store-admin/api-key-path"
+    APPLE_API_KEY = "axo://apple/app-store-connect/api-key-id",
+    APPLE_API_KEY_PATH = "axo://apple/app-store-connect/api-key-path"
   }
 }
+
+test = "swift test --skip PerformanceTests"
+"test:all" = "swift test"
