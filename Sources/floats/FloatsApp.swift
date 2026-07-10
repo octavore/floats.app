@@ -8,49 +8,39 @@ struct FloatsApp: App {
     Window("floats", id: "main") {
       EditorView()
     }
-    #if os(macOS)
-      .windowStyle(.hiddenTitleBar)
-      .defaultSize(width: 480, height: 360)
-    #endif
+    .windowStyle(.hiddenTitleBar)
+    .defaultSize(width: 480, height: 360)
     .commands {
       FormatCommands()
-      #if os(macOS)
-        FloatCommands()
-      #endif
+      FloatCommands()
     }
 
-    // macOS shows this as the standard Settings window (⌘,). On iOS the same
-    // view is presented from EditorView as a sheet.
-    #if os(macOS)
-      Settings {
-        SettingsView()
-      }
-    #endif
+    Settings {
+      SettingsView()
+    }
   }
 }
 
-#if os(macOS)
-  /// Keyboard entry point (⇧⌘F) for the float toggle, since the pin now lives
-  /// in the title bar as an accessory rather than a focusable SwiftUI button.
-  /// Drives the same `isFloating` default the title-bar pin and `EditorView`
-  /// observe, so all three stay in sync.
-  struct FloatCommands: Commands {
-    @AppStorage("isFloating") private var isFloating = false
+/// Keyboard entry point (⇧⌘F) for the float toggle, since the pin now lives
+/// in the title bar as an accessory rather than a focusable SwiftUI button.
+/// Drives the same `isFloating` default the title-bar pin and `EditorView`
+/// observe, so all three stay in sync.
+struct FloatCommands: Commands {
+  @AppStorage("isFloating") private var isFloating = false
 
-    var body: some Commands {
-      CommandGroup(after: .toolbar) {
-        Button(isFloating ? "Stop Floating on Top" : "Float on Top") {
-          isFloating.toggle()
-        }
-        .keyboardShortcut("f", modifiers: [.command, .shift])
+  var body: some Commands {
+    CommandGroup(after: .toolbar) {
+      Button(isFloating ? "Stop Floating on Top" : "Float on Top") {
+        isFloating.toggle()
       }
+      .keyboardShortcut("f", modifiers: [.command, .shift])
     }
   }
-#endif
+}
 
-/// App-level Format menu (and hardware-keyboard shortcuts on iPad). Reaches
-/// the focused window's editor through the focused-scene value, so the menu
-/// stays decoupled from whichever backend is active.
+/// App-level Format menu. Reaches the focused window's editor through the
+/// focused-scene value, so the menu stays decoupled from whichever backend
+/// is active.
 struct FormatCommands: Commands {
   @FocusedValue(\.editorCommands) private var commands
 

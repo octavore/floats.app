@@ -48,19 +48,10 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
     // clobber in-progress typing.
     var isSyncingFromTextView = false
 
-    // Block-based NotificationCenter tokens (iOS keyboard observers) to
-    // unregister when the coordinator goes away. Empty on macOS. Mutated
-    // only on the main actor; read once from the nonisolated deinit.
-    nonisolated(unsafe) var observerTokens: [NSObjectProtocol] = []
-
     init(text: Binding<AttributedString>, commands: EditorCommands) {
       self._text = text
       super.init()
       commands.handler = { [weak self] in self?.handle($0) }
-    }
-
-    deinit {
-      observerTokens.forEach(NotificationCenter.default.removeObserver)
     }
 
     // MARK: Typeface
@@ -91,7 +82,7 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
     /// Re-derives every block's attributes from the current typeface and font
     /// scale and pushes the result back through the binding.
     private func restyleDocument() {
-      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+      guard let tv = textView, let storage = tv.textStorage else { return }
       tv.typingAttributes = TextStyle.body.attributes
       highlighter.highlight(storage)
       // Push the restyled fonts up so the binding matches the storage again.
@@ -118,7 +109,7 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
       bindingSyncTask?.cancel()
       bindingSyncTask = nil
       defer { isSyncingFromTextView = false }
-      guard let storage = textView?.optionalTextStorage else { return }
+      guard let storage = textView?.textStorage else { return }
       text = AttributedString(storage)
     }
 
@@ -138,15 +129,16 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
     /// if the selection is already wrapped. With no selection, inserts the
     /// marker pair and places the cursor between them.
     private func toggleInlineMarker(_ marker: String) {
-      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+      guard let tv = textView, let storage = tv.textStorage else { return }
       let sel = tv.selectedRange
       let str = storage.mutableString
       let mLen = (marker as NSString).length
 
       guard sel.length > 0 else {
         // Caret: place a marker pair and put the cursor between them.
-        replaceText(marker + marker, in: sel,
-                    thenSelect: NSRange(location: sel.location + mLen, length: 0))
+        replaceText(
+          marker + marker, in: sel,
+          thenSelect: NSRange(location: sel.location + mLen, length: 0))
         return
       }
 
@@ -157,8 +149,9 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
         if before == marker && after == marker {
           let inner = str.substring(with: sel)
           let outerRange = NSRange(location: sel.location - mLen, length: sel.length + mLen * 2)
-          replaceText(inner, in: outerRange,
-                      thenSelect: NSRange(location: sel.location - mLen, length: sel.length))
+          replaceText(
+            inner, in: outerRange,
+            thenSelect: NSRange(location: sel.location - mLen, length: sel.length))
           return
         }
       }
@@ -168,7 +161,8 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
         let selectedStr = str.substring(with: sel)
         if selectedStr.hasPrefix(marker) && selectedStr.hasSuffix(marker) {
           let innerLen = sel.length - mLen * 2
-          let inner = (selectedStr as NSString).substring(with: NSRange(location: mLen, length: innerLen))
+          let inner = (selectedStr as NSString).substring(
+            with: NSRange(location: mLen, length: innerLen))
           replaceText(inner, in: sel, thenSelect: NSRange(location: sel.location, length: innerLen))
           return
         }
@@ -176,8 +170,9 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
 
       // Wrap the selection.
       let selectedStr = str.substring(with: sel)
-      replaceText("\(marker)\(selectedStr)\(marker)", in: sel,
-                  thenSelect: NSRange(location: sel.location + mLen, length: sel.length))
+      replaceText(
+        "\(marker)\(selectedStr)\(marker)", in: sel,
+        thenSelect: NSRange(location: sel.location + mLen, length: sel.length))
     }
 
     // MARK: Block prefixes
@@ -185,7 +180,7 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
     /// Replaces the heading prefix on the current paragraph with the one for
     /// `style` (e.g. `# ` for title, `## ` for heading, none for body).
     private func applyBlockPrefix(_ style: TextStyle) {
-      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
+      guard let tv = textView, let storage = tv.textStorage else { return }
       let str = storage.mutableString
       let sel = tv.selectedRange
       let paraStart = str.paragraphRange(for: sel).location
@@ -222,20 +217,13 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
 
     /// Replaces raw text in the storage with full undo support and binding sync.
     private func replaceText(_ string: String, in range: NSRange, thenSelect selectRange: NSRange) {
-      guard let tv = textView, let storage = tv.optionalTextStorage else { return }
-      #if canImport(AppKit)
-        guard tv.shouldChangeText(in: range, replacementString: string) else { return }
-      #endif
+      guard let tv = textView, let storage = tv.textStorage else { return }
+      guard tv.shouldChangeText(in: range, replacementString: string) else { return }
       storage.beginEditing()
       storage.replaceCharacters(in: range, with: string)
       storage.endEditing()
-      #if canImport(AppKit)
-        tv.setSelectedRange(selectRange)
-        tv.didChangeText()
-      #else
-        tv.selectedRange = selectRange
-        scheduleBindingSync()
-      #endif
+      tv.setSelectedRange(selectRange)
+      tv.didChangeText()
     }
   }
 }

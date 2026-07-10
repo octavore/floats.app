@@ -1,13 +1,8 @@
+import AppKit
 import Foundation
 import SwiftTreeSitter
 import TreeSitterMarkdown
 import TreeSitterMarkdownInline
-
-#if canImport(UIKit)
-  import UIKit
-#elseif canImport(AppKit)
-  import AppKit
-#endif
 
 /// Derives the app's formatting from the text *as Markdown* rather than
 /// from stored rich-text attributes. The block grammar finds headings and code

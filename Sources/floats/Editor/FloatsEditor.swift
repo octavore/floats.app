@@ -7,5 +7,5 @@ protocol FloatsEditor: View {
 }
 
 /// The editor the app actually uses today. Swap this line — not the call
-/// sites — when migrating off the UIKit/AppKit text view.
+/// sites — when migrating off the AppKit text view.
 typealias ActiveEditor = TextViewEditor

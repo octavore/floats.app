@@ -1,6 +1,3 @@
-[ios]
-provisioning = "app_store_connect"
-
 [[target]]
 platform         = "macos"
 app.name         = "floats"
@@ -9,15 +6,3 @@ app.version      = "0.1.0"
 app.build_number = "1"
 build.icon.src  = "resources/balloon.png"
 build.icon.background = "#FDE8A9"
-
-
-# [[target]]
-# platform             = "ios"
-# app.name             = "floats"
-# app.bundle_id        = "com.breakfastlabs.floats"
-# app.version          = "0.1.0"
-# app.build_number     = "1"
-# UILaunchScreen opts the app into native full-resolution rendering. Without it,
-# iOS runs in legacy scaled mode — letterboxed (not full screen) with an
-# oversized, too-high keyboard.
-# build.info_json_path = "ios/info.json"

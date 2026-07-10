@@ -1,10 +1,5 @@
+import AppKit
 import SwiftUI
-
-#if canImport(UIKit)
-  import UIKit
-#elseif canImport(AppKit)
-  import AppKit
-#endif
 
 /// The user-selectable typeface for the editor. Each case maps to one of the
 /// system's built-in font *designs*, so every style in the type scale gets a

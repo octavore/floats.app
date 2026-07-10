@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "floats",
-    platforms: [.macOS(.v14), .iOS(.v18)],
+    platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.8.0"),
         .package(

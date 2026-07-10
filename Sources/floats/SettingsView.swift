@@ -4,36 +4,16 @@ import SwiftUI
 /// persisted via `@AppStorage` under `FloatsFont.defaultsKey`, the same key
 /// `EditorView` reads, so selecting a font here updates the editor live.
 ///
-/// Presented as the standard Settings window (⌘,) on macOS and as a sheet on
-/// iOS — both render this same view.
+/// Presented as the standard Settings window (⌘,).
 struct SettingsView: View {
   @AppStorage(FloatsFont.defaultsKey) private var fontFamily: FloatsFont = .system
 
-  #if os(iOS)
-    @Environment(\.dismiss) private var dismiss
-  #endif
-
   var body: some View {
-    #if os(macOS)
-      Form {
-        fontPicker
-      }
-      .padding(20)
-      .frame(width: 340)
-    #else
-      NavigationStack {
-        Form {
-          fontPicker
-        }
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .confirmationAction) {
-            Button("Done") { dismiss() }
-          }
-        }
-      }
-    #endif
+    Form {
+      fontPicker
+    }
+    .padding(20)
+    .frame(width: 340)
   }
 
   private var fontPicker: some View {
@@ -43,8 +23,5 @@ struct SettingsView: View {
         Text(font.displayName).font(font.previewFont).tag(font)
       }
     }
-    #if os(iOS)
-      .pickerStyle(.inline)
-    #endif
   }
 }
