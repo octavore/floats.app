@@ -7,7 +7,9 @@ app.name         = "floats"
 app.bundle_id    = "com.breakfastlabs.floats"
 app.version      = "0.1.0"
 app.build_number = "1"
-build.icon_path  = "resources/icon.png"
+build.icon.src  = "resources/balloon.png"
+build.icon.background = "#FDE8A9"
+
 
 # [[target]]
 # platform             = "ios"
