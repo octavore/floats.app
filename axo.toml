@@ -24,6 +24,7 @@ release = {
   }
 }
 dmg = ":release --skip-notarization --dmg-output-dir ."
+"bump-version" = "scripts/release.sh"
 
 test = "swift test --skip PerformanceTests"
 "test:all" = "swift test"
