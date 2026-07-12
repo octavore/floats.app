@@ -22,6 +22,10 @@ swift test --skip PerformanceTests  # fast tests only
 swift test                          # all tests, slower
 ```
 
+## Releasing
+
+This repo uses [strudel-release-action](https://github.com/octavore/strudel-release-action) for releasing with github actions.
+
 ## Credits
 
 <a href="https://www.flaticon.com/free-icons/birthday" title="birthday icons">Balloon icon created by Pixel perfect - Flaticon</a>
