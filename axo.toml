@@ -23,6 +23,7 @@ release = {
     APPLE_API_KEY_PATH = "axo://apple/app-store-connect/api-key-path"
   }
 }
+dmg = ":release --skip-notarization --dmg-output-dir ."
 
 test = "swift test --skip PerformanceTests"
 "test:all" = "swift test"
