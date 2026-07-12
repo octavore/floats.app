@@ -11,12 +11,32 @@ struct FloatsApp: App {
     .windowStyle(.hiddenTitleBar)
     .defaultSize(width: 480, height: 360)
     .commands {
+      AboutCommand()
       FormatCommands()
       FloatCommands()
     }
 
     Settings {
       SettingsView()
+    }
+  }
+}
+
+/// Replaces the standard About panel to link to the app's homepage and
+/// drop the build number, which is meaningless to end users.
+struct AboutCommand: Commands {
+  var body: some Commands {
+    CommandGroup(replacing: .appInfo) {
+      Button("about floats") {
+        NSApp.orderFrontStandardAboutPanel(options: [
+          .applicationVersion: Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+          .credits: NSAttributedString(
+            string: "https://github.com/octavore/floats.app",
+            attributes: [.link: URL(string: "https://github.com/octavore/floats.app")!]
+          ),
+        ])
+      }
     }
   }
 }
