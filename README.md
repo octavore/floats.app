@@ -1,5 +1,9 @@
 # floats
 
+<p align="center">
+  <img src="docs/images/macos-floats-icon.png" width="96" height="96" alt="floats app icon" />
+</p>
+
 A single floating macOS sticky note, with markdown formatting and auto-saved text.
 
 ## Requirements
