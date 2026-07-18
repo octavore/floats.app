@@ -6,6 +6,10 @@
 
 A single floating macOS sticky note, with markdown formatting and auto-saved text.
 
+## Download
+
+Download the latest build from the [releases page](https://github.com/octavore/floats.app/releases).
+
 ## Requirements
 
 - macOS 14+
