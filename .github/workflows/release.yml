@@ -31,3 +31,13 @@ jobs:
         with:
           draft: true
           files: ${{ steps.strudel.outputs.dmg-path }}
+
+      - name: Notify brrr
+        env:
+          BRRR_API_SECRET: ${{ secrets.BRRR_API_SECRET }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          curl -X POST "https://api.brrr.now/v1/send" \
+            -H "Authorization: Bearer $BRRR_API_SECRET" \
+            -d "🚀 $REPO $TAG built"
