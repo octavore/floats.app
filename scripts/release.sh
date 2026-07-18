@@ -18,7 +18,6 @@ if [[ -z "$current" ]]; then
 fi
 
 strudel config increment-version "$bump"
-strudel config increment-version build
 
 new="$(read_version)"
 tag="v$new"
