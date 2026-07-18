@@ -12,9 +12,11 @@ struct EditorView: View {
   @State private var saveTask: Task<Void, Never>?
   @Environment(\.scenePhase) private var scenePhase
 
-  // The selected typeface, shared with SettingsView through the same defaults
-  // key; changing it there re-renders this view and restyles the editor.
+  // The selected typeface and line spacing, shared with SettingsView through
+  // the same defaults keys; changing them there re-renders this view and
+  // restyles the editor.
   @AppStorage(FloatsFont.defaultsKey) private var fontFamily: FloatsFont = .system
+  @AppStorage(LineSpacing.defaultsKey) private var lineSpacing: LineSpacing = .normal
 
   // Whether the window floats above all other windows/spaces, persisted so
   // it's restored on relaunch. `windowBox` is how we reach the NSWindow a
@@ -27,6 +29,7 @@ struct EditorView: View {
   private var editor: ActiveEditor {
     var editor = ActiveEditor(text: $text, commands: commands)
     editor.fontFamily = fontFamily
+    editor.lineSpacingSetting = lineSpacing
     return editor
   }
 

@@ -51,6 +51,39 @@ enum FloatsFont: String, CaseIterable, Identifiable {
   }
 }
 
+/// The user-selectable line height / paragraph spacing for the editor. Each
+/// case scales `TextStyle.paragraphStyle`'s line height multiple and paragraph
+/// spacing together, so switching density restyles the whole document.
+enum LineSpacing: String, CaseIterable, Identifiable {
+  case compact
+  case normal
+  case relaxed
+
+  var id: String { rawValue }
+
+  /// Key under which the choice is persisted (shared by `@AppStorage` in the UI
+  /// and the `UserDefaults` read that seeds `Typography.lineSpacing` at launch).
+  static let defaultsKey = "lineSpacing"
+
+  var displayName: String {
+    switch self {
+    case .compact: "Compact"
+    case .normal: "Normal"
+    case .relaxed: "Relaxed"
+    }
+  }
+
+  /// Multiplier applied to every `TextStyle`'s base line height and paragraph
+  /// spacing.
+  var multiplier: Double {
+    switch self {
+    case .compact: 0.8
+    case .normal: 1.0
+    case .relaxed: 1.3
+    }
+  }
+}
+
 /// Global, app-wide typography state. `TextStyle.font` reads `current`, so
 /// changing it and restyling the document switches the whole editor's typeface.
 /// Seeded from `UserDefaults` at launch so the first render already uses the
@@ -61,6 +94,14 @@ enum Typography {
   nonisolated(unsafe) static var current: FloatsFont = {
     UserDefaults.standard.string(forKey: FloatsFont.defaultsKey)
       .flatMap(FloatsFont.init(rawValue:)) ?? .system
+  }()
+
+  /// The user's chosen line height / paragraph spacing density. `TextStyle.paragraphStyle`
+  /// reads this, so changing it and restyling the document switches the whole
+  /// editor's spacing.
+  nonisolated(unsafe) static var lineSpacing: LineSpacing = {
+    UserDefaults.standard.string(forKey: LineSpacing.defaultsKey)
+      .flatMap(LineSpacing.init(rawValue:)) ?? .normal
   }()
 
   /// Multiplier applied to every `TextStyle`'s base point size. Adjusted a step
@@ -118,16 +159,17 @@ enum TextStyle: String, CaseIterable, Identifiable {
   }
 
   var paragraphStyle: NSParagraphStyle {
+    let scale = Typography.lineSpacing.multiplier
     let style = NSMutableParagraphStyle()
     switch self {
     case .title:
-      style.paragraphSpacing = 12
+      style.paragraphSpacing = 12 * scale
     case .heading:
-      style.paragraphSpacingBefore = 12
-      style.paragraphSpacing = 6
+      style.paragraphSpacingBefore = 12 * scale
+      style.paragraphSpacing = 6 * scale
     case .body:
-      style.lineHeightMultiple = 1.25
-      style.paragraphSpacing = 8
+      style.lineHeightMultiple = 1.25 * scale
+      style.paragraphSpacing = 8 * scale
     }
     return style
   }

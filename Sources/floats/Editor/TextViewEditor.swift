@@ -17,6 +17,11 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
   /// `FloatsEditor` init (`init(text:commands:)`) leaves it at the default.
   var fontFamily: FloatsFont = .system
 
+  /// The user-selected line spacing density. Set by `EditorView` after
+  /// construction, same as `fontFamily`. Named `lineSpacingSetting`, not
+  /// `lineSpacing`, to avoid colliding with `View`'s `lineSpacing(_:)` modifier.
+  var lineSpacingSetting: LineSpacing = .normal
+
   init(text: Binding<AttributedString>, commands: EditorCommands) {
     self._text = text
     self.commands = commands
@@ -32,6 +37,9 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
     // The typeface currently applied to the text view, so a no-op `updateXxxView`
     // (the common case) doesn't needlessly restyle the whole document.
     var appliedFont: FloatsFont?
+
+    // The line spacing density currently applied, same purpose as `appliedFont`.
+    var appliedLineSpacing: LineSpacing?
 
     // Derives formatting from the text as Markdown on every change.
     let highlighter = MarkdownHighlighter()
@@ -68,6 +76,17 @@ struct TextViewEditor: PlatformViewRepresentable, FloatsEditor {
       guard appliedFont != family else { return false }
       appliedFont = family
       Typography.current = family
+      restyleDocument()
+      return true
+    }
+
+    /// Switches the editor to `spacing` if it isn't already active, same
+    /// pattern as `applyFont`.
+    @discardableResult
+    func applyLineSpacing(_ spacing: LineSpacing) -> Bool {
+      guard appliedLineSpacing != spacing else { return false }
+      appliedLineSpacing = spacing
+      Typography.lineSpacing = spacing
       restyleDocument()
       return true
     }
