@@ -1,5 +1,5 @@
 {
-  "originHash" : "430c2408443f26e589dd3d0e0fed34a452500828b5c44a2b7c7253a4cbb560fe",
+  "originHash" : "d3ff1ecf1e6dc48a789c7d39246d272a4e83f51e27f3bb3143b3543eb29b814d",
   "pins" : [
     {
       "identity" : "strudel-markdown-editor",
@@ -8,6 +8,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "fb6c540765e20d356240e814dc235be0a249a132"
+      }
+    },
+    {
+      "identity" : "sunshine",
+      "kind" : "remoteSourceControl",
+      "location" : "git@github.com:octavore/sunshine.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "f64e14a618f9c5293f6255480a977d3e87aa8e60"
       }
     },
     {

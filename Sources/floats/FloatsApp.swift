@@ -1,13 +1,29 @@
 import CharmingEditor
+import SunshineCore
+import SunshineUI
 import SwiftUI
 
 @main
 struct FloatsApp: App {
+  @StateObject private var updaterUI = SunshineUpdaterUIController(
+    updater: SunshineUpdater(
+      configuration: SunshineConfiguration(
+        owner: "octavore",
+        repo: "floats.app",
+        checkInterval: 3600
+      ))
+  )
+
+  init() {
+    SunshineUpdater.confirmSuccessfulRelaunchIfNeeded()
+  }
+
   var body: some Scene {
     // A single, non-duplicable window — this app is one document, not a
     // multi-window editor, so there's no "New Window" command to remove.
     Window("floats", id: "main") {
       EditorView()
+        .sunshineUpdater(updaterUI)
     }
     .windowStyle(.hiddenTitleBar)
     .defaultSize(width: 480, height: 360)
@@ -15,10 +31,11 @@ struct FloatsApp: App {
       AboutCommand()
       FormatCommands()
       FloatCommands()
+      CheckForUpdatesCommand(updaterUI)
     }
 
     Settings {
-      SettingsView()
+      SettingsView(updaterUI: updaterUI)
     }
   }
 }

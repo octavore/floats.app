@@ -1,4 +1,5 @@
 import CharmingEditor
+import SunshineUI
 import SwiftUI
 
 extension EditorSettings {
@@ -20,12 +21,19 @@ enum AppSettings {
 /// The Settings window (⌘,). A tabbed shell following the macOS conventions:
 /// one `Label` per tab, a fixed frame, top-aligned content.
 struct SettingsView: View {
+  /// The updates controller, backing the "Updates" tab.
+  @ObservedObject var updaterUI: SunshineUpdaterUIController
+
   var body: some View {
     TabView {
       GeneralSettingsView()
         .tabItem { Label("General", systemImage: "gearshape") }
       EditorSettingsTab()
         .tabItem { Label("Editor", systemImage: "textformat") }
+      ScrollView {
+        SunshineUpdateSettingsView(controller: updaterUI, appName: "floats")
+      }
+      .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
     }
     .frame(width: 460, height: 460, alignment: .top)
     .navigationTitle("floats")
