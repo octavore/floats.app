@@ -1,6 +1,15 @@
 {
-  "originHash" : "6eae5fabe33995866fe5818dbf88072d7148159d318598672aacb87c44b7f124",
+  "originHash" : "430c2408443f26e589dd3d0e0fed34a452500828b5c44a2b7c7253a4cbb560fe",
   "pins" : [
+    {
+      "identity" : "strudel-markdown-editor",
+      "kind" : "remoteSourceControl",
+      "location" : "ssh://git.recurse.world/octavore/strudel-markdown-editor",
+      "state" : {
+        "branch" : "main",
+        "revision" : "fb6c540765e20d356240e814dc235be0a249a132"
+      }
+    },
     {
       "identity" : "swift-tree-sitter",
       "kind" : "remoteSourceControl",

@@ -1,3 +1,4 @@
+import CharmingEditor
 import SwiftUI
 
 @main
@@ -64,6 +65,10 @@ struct FloatCommands: Commands {
 struct FormatCommands: Commands {
   @FocusedValue(\.editorCommands) private var commands
 
+  // The editor has no font-size command; ⌘+/⌘- nudge the same persisted
+  // `EditorSettings` bundle the Settings window and `EditorView` read.
+  @AppStorage(EditorSettings.defaultsKey) private var settings = EditorSettings()
+
   var body: some Commands {
     CommandMenu("Format") {
       Button("Bold") { commands?.send(.toggleBold) }
@@ -76,10 +81,16 @@ struct FormatCommands: Commands {
           .keyboardShortcut(style.shortcutKey, modifiers: [.command, .option])
       }
       Divider()
-      Button("Increase Font Size") { commands?.send(.increaseFontSize) }
+      Button("Increase Font Size") { adjustFontSize(by: 1) }
         .keyboardShortcut("+", modifiers: .command)
-      Button("Decrease Font Size") { commands?.send(.decreaseFontSize) }
+      Button("Decrease Font Size") { adjustFontSize(by: -1) }
         .keyboardShortcut("-", modifiers: .command)
     }
+  }
+
+  private func adjustFontSize(by step: Double) {
+    let range = Typography.sizeRange
+    settings.fontSize = min(range.upperBound, max(range.lowerBound, settings.fontSize + step))
+    AppSettings.editorChannel.send(settings)
   }
 }

@@ -3,26 +3,19 @@ import PackageDescription
 
 let package = Package(
     name: "floats",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     dependencies: [
-        .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.8.0"),
-        .package(
-            url: "https://github.com/tree-sitter-grammars/tree-sitter-markdown",
-            from: "0.5.3"),
+        .package(url: "ssh://git.recurse.world/octavore/strudel-markdown-editor", branch: "main")
+
     ],
     targets: [
         .executableTarget(
             name: "floats",
             dependencies: [
-                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
-                .product(name: "TreeSitterMarkdown", package: "tree-sitter-markdown"),
+                .product(name: "CharmingEditor", package: "strudel-markdown-editor")
+
             ],
             path: "Sources/floats"
-        ),
-        .testTarget(
-            name: "floatsTests",
-            dependencies: ["floats"],
-            path: "Tests/floatsTests"
-        ),
+        )
     ]
 )
