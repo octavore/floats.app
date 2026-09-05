@@ -6,13 +6,18 @@ clean = "strudel clean"
 
 run = {
   command = "strudel run",
-  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" },
 }
 build = {
   command = "strudel build",
-  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" }
+  env = { APPLE_SIGNING_IDENTITY = "axo://apple/developer/dev-cert" },
 }
 install = ":build --install"
+relaunch = [
+  ":install",
+  "pkill -f /Applications/floats.app || true",
+  "open /Applications/floats.app",
+]
 
 release = {
   command = "strudel release",
@@ -20,11 +25,13 @@ release = {
     APPLE_SIGNING_IDENTITY = "axo://apple/developer/developer-app-cert",
     APPLE_API_ISSUER = "axo://apple/app-store-connect/api-issuer-id",
     APPLE_API_KEY = "axo://apple/app-store-connect/api-key-id",
-    APPLE_API_KEY_PATH = "axo://apple/app-store-connect/api-key-path"
-  }
+    APPLE_API_KEY_PATH = "axo://apple/app-store-connect/api-key-path",
+  },
 }
 dmg = ":release --skip-notarization --dmg-output-dir ."
 "bump-version" = "scripts/release.sh"
+
+check = "swift build"
 
 test = "swift test --skip PerformanceTests"
 "test:all" = "swift test"
