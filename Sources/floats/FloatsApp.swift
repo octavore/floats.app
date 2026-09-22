@@ -23,6 +23,8 @@ struct FloatsApp: App {
     // multi-window editor, so there's no "New Window" command to remove.
     Window("floats", id: "main") {
       EditorView()
+        .ignoresSafeArea(.container, edges: .top)
+        .toolbar(removing: .title)
         .sunshineUpdater(updaterUI)
     }
     .windowStyle(.hiddenTitleBar)
