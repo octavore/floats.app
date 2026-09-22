@@ -1,7 +1,7 @@
-import CharmingEditor
+import Crumpet
 import SwiftUI
 
-/// Top-level editing surface: the CharmingEditor library's `MarkdownEditor`
+/// Top-level editing surface: the Crumpet library's `MarkdownEditor`
 /// bound to the document text, wrapped in the floating-window plumbing this app
 /// adds on top.
 struct EditorView: View {

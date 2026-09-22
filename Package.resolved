@@ -1,19 +1,19 @@
 {
-  "originHash" : "d3ff1ecf1e6dc48a789c7d39246d272a4e83f51e27f3bb3143b3543eb29b814d",
+  "originHash" : "52ad8d87e5bcca27aa6a80ea7a9b4adc24be9ff19ebd714c72d6fe58d8eaeb50",
   "pins" : [
     {
-      "identity" : "strudel-markdown-editor",
+      "identity" : "crumpet",
       "kind" : "remoteSourceControl",
-      "location" : "ssh://git.recurse.world/octavore/strudel-markdown-editor",
+      "location" : "https://github.com/octavore/crumpet",
       "state" : {
         "branch" : "main",
-        "revision" : "fb6c540765e20d356240e814dc235be0a249a132"
+        "revision" : "0566d5166b976766d59d8aec054efe5c12682e8d"
       }
     },
     {
       "identity" : "sunshine",
       "kind" : "remoteSourceControl",
-      "location" : "git@github.com:octavore/sunshine.git",
+      "location" : "https://github.com/octavore/sunshine",
       "state" : {
         "branch" : "main",
         "revision" : "f64e14a618f9c5293f6255480a977d3e87aa8e60"
