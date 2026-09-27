@@ -15,9 +15,12 @@ struct EditorView: View {
 
   // Editor typography and rendering options, shared with SettingsView through
   // the same defaults keys; changing them there re-renders this view and
-  // restyles the editor live. Colors stay a separate host-defined toggle.
+  // restyles the editor live.
   @AppStorage(EditorSettings.defaultsKey) private var settings = EditorSettings()
-  @AppStorage(EditorColorScheme.colorfulDefaultsKey) private var colorfulSyntax = false
+  @AppStorage(EditorTheme.defaultsKey) private var theme = EditorTheme.system
+  @AppStorage(EditorAppearance.defaultsKey) private var editorAppearance = EditorAppearance.system
+  @AppStorage(EditorCustomColors.defaultsKey) private var customColors = EditorCustomColors()
+  @Environment(\.colorScheme) private var systemAppearance
 
   // Whether the window floats above all other windows/spaces, persisted so it's
   // restored on relaunch. `windowBox` is how we reach the NSWindow a pure
@@ -25,16 +28,27 @@ struct EditorView: View {
   @AppStorage("isFloating") private var isFloating = false
   @State private var windowBox = WindowBox()
 
+  /// The light or dark appearance the editor is using.
+  private var appearance: ColorScheme { editorAppearance.resolved(systemAppearance) }
+
+  /// The scheme in effect now, used to paint the surface around the editor.
+  private var colorScheme: EditorColorScheme {
+    theme.colorScheme(for: appearance, customColors: customColors)
+  }
+
   var body: some View {
     MarkdownEditor(text: $text)
       .commands(commands)
       .editorSettings(settings)
       .editorSettingsChannel(AppSettings.editorChannel)
-      .editorColorScheme(colorfulSyntax ? .colorful : .standard)
+      .editorTheme(theme, customColors: customColors)
+      .editorAppearance(editorAppearance)
       // Fills the window so the scrollbar sits at the window's edge; the text
       // itself is kept to a readable column inside the text view.
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .background(Color.editorBackground)
+      // Resolves an adaptive background in the editor's appearance, which can
+      // differ from the window's.
+      .background { colorScheme.background.environment(\.colorScheme, appearance) }
       // Exposes this window's editor to the app-level Format menu.
       .focusedSceneValue(\.editorCommands, commands)
       // Resolves this window once SwiftUI creates it, then applies whatever

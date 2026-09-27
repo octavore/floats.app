@@ -7,7 +7,7 @@
       "location" : "https://github.com/octavore/crumpet",
       "state" : {
         "branch" : "main",
-        "revision" : "0566d5166b976766d59d8aec054efe5c12682e8d"
+        "revision" : "bd50b9cfe54a4a975a1b0e2f71992465de331a9c"
       }
     },
     {
@@ -16,7 +16,7 @@
       "location" : "https://github.com/octavore/sunshine",
       "state" : {
         "branch" : "main",
-        "revision" : "f64e14a618f9c5293f6255480a977d3e87aa8e60"
+        "revision" : "7c5025af95e600c16020f603a471edf69fa7e061"
       }
     },
     {

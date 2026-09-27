@@ -25,17 +25,23 @@ struct SettingsView: View {
   @ObservedObject var updaterUI: SunshineUpdaterUIController
 
   var body: some View {
+    // Each tab sets its own size; the Settings window resizes to match.
     TabView {
       GeneralSettingsView()
+        .frame(width: 460, height: 460, alignment: .top)
         .tabItem { Label("General", systemImage: "gearshape") }
       EditorSettingsTab()
+        .frame(width: 460, height: 460, alignment: .top)
         .tabItem { Label("Editor", systemImage: "textformat") }
+      ThemeSettingsTab()
+        .frame(width: 560, height: 560, alignment: .top)
+        .tabItem { Label("Theme", systemImage: "paintpalette") }
       ScrollView {
         SunshineUpdateSettingsView(controller: updaterUI, appName: "floats")
       }
+      .frame(width: 460, height: 460, alignment: .top)
       .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
     }
-    .frame(width: 460, height: 460, alignment: .top)
     .navigationTitle("floats")
   }
 }
@@ -56,17 +62,14 @@ private struct GeneralSettingsView: View {
   }
 }
 
-/// The library's pre-built `EditorSettingsForm`, plus this app's own colorful
-/// syntax toggle. Persisted under `EditorSettings.defaultsKey`, the same key
-/// `EditorView` reads.
+/// The library's pre-built `EditorSettingsForm`. Persisted under
+/// `EditorSettings.defaultsKey`, the same key `EditorView` reads.
 private struct EditorSettingsTab: View {
   @AppStorage(EditorSettings.defaultsKey) private var settings = EditorSettings()
-  @AppStorage(EditorColorScheme.colorfulDefaultsKey) private var colorfulSyntax = false
 
   var body: some View {
     Form {
       EditorSettingsForm(settings: $settings)
-      Toggle("Colorful Syntax", isOn: $colorfulSyntax)
     }
     .formStyle(.automatic)
     .padding(32)
@@ -76,15 +79,35 @@ private struct EditorSettingsTab: View {
   }
 }
 
-/// The app's syntax palette, showing how a host defines its own
-/// `EditorColorScheme` via the library's public initializer.
-extension EditorColorScheme {
-  static let colorfulDefaultsKey = "colorfulSyntax"
+/// The library's pre-built `EditorThemeForm` with the Custom theme enabled.
+/// The theme, appearance, and custom colors persist under their own keys,
+/// which `EditorView` reads.
+private struct ThemeSettingsTab: View {
+  @AppStorage(EditorTheme.defaultsKey) private var theme = EditorTheme.system
+  @AppStorage(EditorAppearance.defaultsKey) private var appearance = EditorAppearance.system
+  @AppStorage(EditorCustomColors.defaultsKey) private var customColors = EditorCustomColors()
 
-  static let colorful = EditorColorScheme(
-    heading: .blue,
-    code: .pink,
-    bold: .orange,
-    italic: .teal
-  )
+  var body: some View {
+    // Grouped so the theme cards and preview span the full width, and the
+    // form scrolls when the Custom theme's rows exceed the window.
+    Form {
+      EditorThemeForm(theme: $theme, appearance: $appearance, customColors: $customColors)
+    }
+    .formStyle(.grouped)
+  }
+}
+
+extension EditorTheme {
+  /// `@AppStorage` key for the selected theme.
+  static let defaultsKey = "editorTheme"
+}
+
+extension EditorAppearance {
+  /// `@AppStorage` key for the light or dark appearance.
+  static let defaultsKey = "editorAppearance"
+}
+
+extension EditorCustomColors {
+  /// `@AppStorage` key for the Custom theme's colors.
+  static let defaultsKey = "customColorScheme"
 }
