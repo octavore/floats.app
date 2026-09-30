@@ -32,6 +32,7 @@ struct FloatsApp: App {
     .commands {
       AboutCommand()
       FormatCommands()
+      InsertCommands()
       FloatCommands()
       CheckForUpdatesCommand(updaterUI)
     }
@@ -75,6 +76,33 @@ struct FloatCommands: Commands {
       }
       .keyboardShortcut("f", modifiers: [.command, .shift])
     }
+  }
+}
+
+/// Insert menu with date and time stamps at the cursor (⇧⌘7, ⇧⌘8, ⇧⌘9).
+struct InsertCommands: Commands {
+  @FocusedValue(\.editorCommands) private var commands
+
+  private static let stamps: [(title: String, key: KeyEquivalent, format: String)] = [
+    ("Date and Time", "7", "MMM d, yyyy 'at' h:mm a"),
+    ("Date", "8", "MMM d, yyyy"),
+    ("ISO Date", "9", "yyyy-MM-dd"),
+  ]
+
+  var body: some Commands {
+    CommandMenu("Insert") {
+      ForEach(Self.stamps, id: \.key.character) { stamp in
+        Button(stamp.title) { commands?.send(.insertText(Self.format(stamp.format))) }
+          .keyboardShortcut(stamp.key, modifiers: [.command, .shift])
+      }
+    }
+  }
+
+  private static func format(_ pattern: String) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = pattern
+    return formatter.string(from: Date())
   }
 }
 
